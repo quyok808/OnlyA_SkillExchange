@@ -36,7 +36,14 @@ class UserController extends Controller
                 'data' => $result
             ], 201);
         } catch (\Exception $e) {
-            $statusCode = $e->getCode() ?: 400;
+            $statusCode = (int) $e->getCode(); // Chắc chắn là int
+
+            // Kiểm tra xem $statusCode có phải là một mã HTTP hợp lệ không
+            if ($statusCode < 100 || $statusCode > 599) {
+                $statusCode = 400; // Đặt thành 400 Bad Request theo mặc định
+                Log::warning('Invalid HTTP status code from exception: ' . $e->getCode() . '. Using 400 instead.');
+            }
+
             Log::error('Registration error: ' . $e->getMessage(), ['code' => $statusCode]); // Log lỗi
             return response()->json([
                 'status' => 'error',
@@ -44,6 +51,7 @@ class UserController extends Controller
             ], $statusCode);
         }
     }
+
     public function login(LoginRequest $request)
     {
         try {
@@ -77,7 +85,7 @@ class UserController extends Controller
             $this->userService->verifyEmail($token);
             return response()->json(['status' => 'success', 'message' => 'Email verified successfully.'], 200);
         } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], $e->getCode() ?: 400);
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 

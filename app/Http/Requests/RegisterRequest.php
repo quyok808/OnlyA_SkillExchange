@@ -15,4 +15,13 @@ class RegisterRequest extends FormRequest
             'confirmPassword' => 'required|same:password',
         ];
     }
+
+    public function messages()
+    {
+        return [
+            'name.required' => 'Vui lòng nhập tên người dùng.',
+            'email.required' => 'Vui lòng nhập email.',
+            'email.email' => 'Email phải có định dạng example@gmail.com.'
+        ];
+    }
 }
