@@ -32,13 +32,12 @@ class UserService
                 'role' => 'user', // Thêm role mặc định
             ]);
 
-            $token = JWTAuth::fromUser($user);
-            // Gọi sendVerificationEmail thủ công
+            // Gọi sendVerificationEmail
             $this->sendVerificationEmail($user->id, 'http', 'localhost:5008');
-            return ['user' => $user, 'token' => $token];
+            return ['user' => $user];
         } catch (\Exception $e) {
             if ($e->getCode() == 23000) {
-                throw new \Exception('Email already exists.', 409);
+                throw new \Exception('Email đã tồn tại.', 409);
             }
             throw $e;
         }
@@ -47,24 +46,24 @@ class UserService
     public function login(array $data)
     {
         if (!isset($data['email']) || !isset($data['password'])) {
-            throw new \Exception('Email or password is missing.', 400);
+            throw new \Exception('Bạn cần phải điền đầy đủ thông tin.', 400);
         }
 
         if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-            throw new \Exception('Invalid email format.', 401);
+            throw new \Exception('Không đúng định dạng email mong muốn.', 401);
         }
 
         $user = User::where('email', $data['email'])->first();
         if (!$user || !$user->comparePassword($data['password'])) {
-            throw new \Exception('Incorrect email or password.', 401);
+            throw new \Exception('Sai email hoặc mật khẩu.', 401);
         }
 
         if (!$user->active) {
-            throw new \Exception('Please verify your email first.', 403);
+            throw new \Exception('Bạn cần xác thực email trước khi đăng nhập.', 403);
         }
 
         if ($user->lock) {
-            throw new \Exception('Your account is locked.', 403);
+            throw new \Exception('Tài khoản của bạn bị khoá.', 403);
         }
 
         return JWTAuth::fromUser($user);
@@ -78,7 +77,7 @@ class UserService
 
             // Kiểm tra vai trò
             if ($currentUser->role !== 'admin') {
-                throw new \Exception('Unauthorized: Only admins can access this resource.', 403);
+                throw new \Exception('Tài khoản của bạn không đủ quyền để làm điều này', 403);
             }
 
             // Logic lấy tất cả users (giữ nguyên)
@@ -95,13 +94,11 @@ class UserService
                     '_id' => $user->id, // Thay 'id' bằng '_id'
                     'name' => $user->name,
                     'email' => $user->email,
-                    'password' => $user->password,
                     'role' => $user->role,
                     'photo' => $user->photo,
                     'active' => $user->active,
                     'createdAt' => $user->created_at,
                     'updatedAt' => $user->updated_at,
-                    '__v' => 0, // Thêm trường __v (nếu cần, và có thể thay đổi giá trị)
                     'skills' => $user->skills, // Giữ nguyên skills
                 ];
             });
