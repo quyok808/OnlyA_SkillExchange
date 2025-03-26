@@ -75,16 +75,16 @@ class User extends Authenticatable implements JWTSubject
     public function createEmailVerificationToken()
     {
         $token = bin2hex(random_bytes(32));
-        $this->email_verification_token = hash('sha256', $token);
-        $this->email_verification_expires = now()->addHours(24);
+        $this->emailVerificationToken = hash('sha256', $token);
+        $this->emailVerificationExpires = now()->addHours(24);
         return $token;
     }
 
     public function createPasswordResetToken()
     {
         $token = bin2hex(random_bytes(32));
-        $this->password_reset_token = hash('sha256', $token);
-        $this->password_reset_expires = now()->addMinutes(10);
+        $this->passwordResetToken = hash('sha256', $token);
+        $this->passwordResetExpires = now()->addMinutes(10);
         return $token;
     }
 

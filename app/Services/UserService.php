@@ -19,7 +19,7 @@ class UserService
     {
         try {
             if (!($data['password'] == $data['confirmPassword'])) {
-                throw new \Exception('Mật khẩu và xác nhận mật khẩu không khớp nhau.', 400);
+                throw new \Exception('Passwords do not match.', 400);
             }
             $user = User::create([
                 'name' => $data['name'],
@@ -29,17 +29,15 @@ class UserService
                 'photo' => 'defaultAvatar.jpg',
                 'lock' => false,
                 'skill' => [],
-                'role' => 'user',
+                'role' => 'user', // Thêm role mặc định
             ]);
 
             $token = JWTAuth::fromUser($user);
-            // Kích hoạt sự kiện Registered để gửi email xác thực
-            $token = JWTAuth::fromUser($user);
             // Gọi sendVerificationEmail thủ công
-            $this->sendVerificationEmail($user->id, 'http', 'localhost:5009');
+            $this->sendVerificationEmail($user->id, 'http', 'localhost:5008');
             return ['user' => $user, 'token' => $token];
         } catch (\Exception $e) {
-            if ($e->getCode() == 23000) { // Duplicate entry
+            if ($e->getCode() == 23000) {
                 throw new \Exception('Email already exists.', 409);
             }
             throw $e;
@@ -141,8 +139,8 @@ class UserService
     public function verifyEmail($token)
     {
         $hashedToken = hash('sha256', $token);
-        $user = User::where('email_verification_token', $hashedToken)
-            ->where('email_verification_expires', '>', now())
+        $user = User::where('emailVerificationToken', $hashedToken)
+            ->where('emailVerificationExpires', '>', now())
             ->first();
 
         if (!$user) {
@@ -154,8 +152,8 @@ class UserService
         }
 
         $user->active = true;
-        $user->email_verification_token = null;
-        $user->email_verification_expires = null;
+        $user->emailVerificationToken = null;
+        $user->emailVerificationExpires = null;
         $user->save();
     }
 
