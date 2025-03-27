@@ -180,28 +180,21 @@ class UserService
     public function logout()
     {
         try {
-            $token = JWTAuth::getToken(); // Lấy token trước khi invalidate
+            $token = JWTAuth::getToken();
             if (!$token) {
                 return response()->json(['status' => 'error', 'message' => 'Token not provided.'], 400);
             }
 
-            BlacklistedToken::create([
-                'token' => $token, // Lưu token vào danh sách đen
-            ]);
-
-            JWTAuth::invalidate($token); // Vô hiệu hóa token
+            JWTAuth::invalidate($token);
 
             return response()->json(['status' => 'success', 'message' => 'Logout successful.'], 200);
         } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
-            // Token đã bị vô hiệu hóa hoặc không hợp lệ (có thể do đã đăng xuất)
             Log::warning('Token already invalid or expired during logout.', ['exception' => $e]);
             return response()->json(['status' => 'success', 'message' => 'Logout successful.'], 200); // Vẫn trả về thành công
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
-            // Lỗi khác liên quan đến JWT (ví dụ: không thể tạo token)
             Log::error('JWT Exception during logout.', ['exception' => $e]);
             return response()->json(['status' => 'error', 'message' => 'Failed to logout, please try again.'], 500);
         } catch (\Exception $e) {
-            // Bắt các lỗi không lường trước được
             Log::error('Unexpected error during logout.', ['exception' => $e]);
             return response()->json(['status' => 'error', 'message' => 'An unexpected error occurred.'], 500);
         }
@@ -210,7 +203,7 @@ class UserService
     public function uploadAvatar(User $user, array $data): string
     {
         $validator = Validator::make($data, [
-            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
         ]);
 
         if ($validator->fails()) {
