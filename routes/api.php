@@ -3,6 +3,7 @@
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ConnectionController;
 
 // Public routes
 Route::post('/users/register', [UserController::class, 'register']); // Đăng ký
@@ -22,4 +23,11 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/users/search', [UserController::class, 'searchUser']); // Tìm kiếm user
     Route::get('/users/network', [UserController::class, 'searchUserInNetwork']); // Tìm kiếm trong mạng lưới
     Route::post('/users/skills', [UserController::class, 'addSkillToUser']); // Thêm kỹ năng cho user
+
+    //Routers connection
+    Route::post('/connections/send-request', [ConnectionController::class, 'sendRequest']); // Gửi yêu cầu kết bạn
+    Route::post('/connections/accept-request/{connection_id}', [ConnectionController::class, 'acceptRequest']); // Chấp nhận kết bạn
+    Route::post('/connections/decline-request/{connection_id}', [ConnectionController::class, 'declineRequest']); // Từ chối kết bạn
+    Route::post('/connections/cancel-request', [ConnectionController::class, 'cancelRequest']); // Hủy yêu cầu kết bạn
+    Route::post('/connections/remove-friend', [ConnectionController::class, 'removeFriend']); // Xóa bạn
 });
