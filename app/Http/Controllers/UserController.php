@@ -83,7 +83,8 @@ class UserController extends Controller
     {
         try {
             $this->userService->verifyEmail($token);
-            return response()->json(['status' => 'success', 'message' => 'Email verified successfully.'], 200);
+            // return response()->json(['status' => 'success', 'message' => 'Email verified successfully.'], 200);
+            return redirect('http://localhost:5173/');
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
@@ -95,7 +96,9 @@ class UserController extends Controller
             $user = $this->userService->me();
             return response()->json([
                 'status' => 'success',
-                'data' => $user
+                'data' => [
+                    'user' => $user
+                ]
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -120,7 +123,7 @@ class UserController extends Controller
         try {
             $user = JWTAuth::parseToken()->authenticate();
 
-            $photoUrl = $this->userService->uploadAvatar($user, $request->all());
+            $photoUrl = $this->userService->uploadAvatar($user, $request); // Truyền $request
 
             return response()->json(['status' => 'success', 'message' => 'Photo uploaded successfully.', 'photo_url' => $photoUrl], 200);
         } catch (\Exception $e) {
@@ -374,5 +377,33 @@ class UserController extends Controller
         } catch (\Exception $error) {
             throw $error;
         }
+    }
+
+    public function getProfileImage()
+    {
+        $user = auth('api')->user();
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'image' => asset('storage/' . $user->photo)
+            ]
+        ], 200);
+    }
+
+    public function getProfileImageById($id)
+    {
+        $user = User::find($id);
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'User not found.'
+            ], 404);
+        }
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'image' => asset('storage/' . $user->photo)
+            ]
+        ], 200);
     }
 }

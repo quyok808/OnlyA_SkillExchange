@@ -6,6 +6,7 @@ use Exception;
 use App\Models\User;
 use App\Models\Skill;
 use App\Utils\APIFeatures;
+use Illuminate\Http\Request;
 use App\Models\BlacklistedToken;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\Log;
@@ -27,7 +28,7 @@ class UserService
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
                 'active' => false,
-                'photo' => 'defaultAvatar.jpg',
+                'photo' => 'photos/defaultAvatar.jpg',
                 'lock' => false,
                 'skill' => [],
                 'role' => 'user', // Thêm role mặc định
@@ -230,9 +231,19 @@ class UserService
         }
     }
 
-    public function uploadAvatar(User $user, array $data): string
+    public function uploadAvatar(User $user, Request $request): string
     {
-        $validator = Validator::make($data, [
+        var_dump(
+            $request->all(),
+            $request->file('photo'),
+            $request->hasFile('photo'),
+            $_FILES
+        );
+        if (!$request->hasFile('photo')) {
+            throw new \Exception('The photo không tồn tại.', 400);
+        }
+        // Validate file trực tiếp
+        $validator = Validator::make(['photo' => $request->file('photo')], [
             'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
         ]);
 
@@ -240,24 +251,19 @@ class UserService
             throw new \Exception($validator->errors()->first(), 400);
         }
 
-        if (isset($data['photo'])) {
-            $file = $data['photo'];
-            $filename = 'user-' . $user->id . '-' . time() . '.' . $file->getClientOriginalExtension();
+        $file = $request->file('photo');
+        $filename = 'user-' . $user->id . '-' . time() . '.' . $file->getClientOriginalExtension();
 
-            $path = $file->storeAs('photos', $filename, 'public');
+        $path = $file->storeAs('photos', $filename, 'public');
 
-            // Xóa ảnh cũ nếu có
-            if ($user->photo && $user->photo !== 'default.jpg') {
-                Storage::disk('public')->delete($user->photo);
-            }
-
-            $user->photo = $path;
-            $user->save();
-
-            return asset('storage/' . $path);
+        if ($user->photo && $user->photo !== 'default.jpg') {
+            Storage::disk('public')->delete($user->photo);
         }
 
-        throw new \Exception('No photo uploaded.', 400);
+        $user->photo = $path;
+        $user->save();
+
+        return asset('storage/' . $path);
     }
 
     /**
