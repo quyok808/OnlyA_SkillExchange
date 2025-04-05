@@ -18,9 +18,13 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/users/me', [UserController::class, 'me']); // Lấy thông tin user hiện tại
     Route::get('/users/{id}', [UserController::class, 'getUserById']); // Lấy thông tin user theo ID
     Route::get('/users/network', [UserController::class, 'searchUserInNetwork']); // Tìm kiếm trong mạng lưới
-    Route::put('/users/me', [UserController::class, 'updateMe']); // Cập nhật thông tin user
+    Route::get('users/profile/image', [UserController::class, 'getProfileImage']);
+    Route::get('users/profile/image/{id}', [UserController::class, 'getProfileImageById']);
+    Route::put('/users/update-profile', [UserController::class, 'updateMe']); // Cập nhật thông tin user
     Route::post('/users/logout', [UserController::class, 'logout']); // Đăng xuất
     Route::put('/users/change-password', [UserController::class, 'changePassword']); // Đổi mật khẩu
-    Route::post('/users/upload-avatar', [UserController::class, 'uploadAvatar']); // Tải ảnh đại diện
-    Route::put('/users/skills', [UserController::class, 'addSkillToUser']); // Thêm kỹ năng cho user
+    Route::post('/users/upload-photo', [UserController::class, 'uploadAvatar']); // Tải ảnh đại diện
+    Route::put('/users/add-skill', [UserController::class, 'addSkillToUser']); // Thêm kỹ năng cho user
+
+    //Reports
 });
