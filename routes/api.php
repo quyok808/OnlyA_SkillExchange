@@ -3,7 +3,7 @@
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\AppointmentController; 
+use App\Http\Controllers\AppointmentController;
 
 // Public routes
 Route::post('/users/register', [UserController::class, 'register']); // Đăng ký
@@ -27,7 +27,7 @@ Route::middleware('auth:api')->group(function () {
     Route::put('/users/change-password', [UserController::class, 'changePassword']); // Đổi mật khẩu
     Route::post('/users/upload-photo', [UserController::class, 'uploadAvatar']); // Tải ảnh đại diện
     Route::put('/users/add-skill', [UserController::class, 'addSkillToUser']); // Thêm kỹ năng cho user
-    Route::post('appointments', [AppointmentController::class, 'store']);
+    Route::post('/appointments', [AppointmentController::class, 'store']);
     Route::get('/appointments/my', [AppointmentController::class, 'myAppointments'])->name('appointments.my');
     Route::patch('/appointments/{appointment}/status', [AppointmentController::class, 'updateStatus'])->name('appointments.updateStatus');
     Route::apiResource('appointments', AppointmentController::class)->except(['index']);

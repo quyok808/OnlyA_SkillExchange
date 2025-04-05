@@ -48,14 +48,14 @@ class AppointmentController extends Controller
             ->where(function ($query) use ($dataToCreate) {
                 // Kiểm tra xem sender HOẶC receiver có tham gia lịch nào khác không
                 $query->where('senderId', $dataToCreate['senderId'])    // <-- Query camelCase
-                      ->orWhere('receiverId', $dataToCreate['senderId'])// <-- Query camelCase
-                      ->orWhere('senderId', $dataToCreate['receiverId'])// <-- Query camelCase
-                      ->orWhere('receiverId', $dataToCreate['receiverId']);// <-- Query camelCase
+                    ->orWhere('receiverId', $dataToCreate['senderId']) // <-- Query camelCase
+                    ->orWhere('senderId', $dataToCreate['receiverId']) // <-- Query camelCase
+                    ->orWhere('receiverId', $dataToCreate['receiverId']); // <-- Query camelCase
             })
             ->where(function ($query) use ($startTime, $endTime) {
                 // Điều kiện thời gian trùng lặp: (start1 < end2) AND (end1 > start2)
                 $query->where('startTime', '<', $endTime) // <-- Query camelCase
-                      ->where('endTime', '>', $startTime); // <-- Query camelCase
+                    ->where('endTime', '>', $startTime); // <-- Query camelCase
             })
             ->exists(); // Chỉ cần biết có tồn tại hay không
 
@@ -179,7 +179,7 @@ class AppointmentController extends Controller
         // Kiểm tra quyền hạn (ví dụ: chỉ sender hoặc receiver được xóa)
         $userId = Auth::id();
         if ($appointment->senderId != $userId && $appointment->receiverId != $userId) { // Truy cập camelCase
-           return response()->json(['status' => 'error', 'message' => 'Bạn không có quyền xóa lịch hẹn này.'], Response::HTTP_FORBIDDEN); // 403
+            return response()->json(['status' => 'error', 'message' => 'Bạn không có quyền xóa lịch hẹn này.'], Response::HTTP_FORBIDDEN); // 403
         }
         // Optional: Kiểm tra trạng thái trước khi xóa (ví dụ: không cho xóa nếu đã 'accepted'?)
 
@@ -199,9 +199,9 @@ class AppointmentController extends Controller
 
         // Query dùng tên cột camelCase
         $appointments = Appointment::where(function ($query) use ($userId) {
-                $query->where('senderId', $userId)      // <-- Query camelCase
-                      ->orWhere('receiverId', $userId); // <-- Query camelCase
-            })
+            $query->where('senderId', $userId)      // <-- Query camelCase
+                ->orWhere('receiverId', $userId); // <-- Query camelCase
+        })
             ->orderBy('created_at', 'desc') // Sắp xếp theo thời gian tạo giảm dần
             ->get();
 
@@ -241,21 +241,21 @@ class AppointmentController extends Controller
         if (in_array($newStatus, ['accepted', 'rejected'])) {
             // Chỉ receiver mới được accept/reject
             if ($appointment->receiverId != $userId) { // <-- camelCase
-                 return response()->json(['status' => 'error', 'message' => 'Bạn không được phép thực hiện hành động này.'], Response::HTTP_FORBIDDEN); // 403
+                return response()->json(['status' => 'error', 'message' => 'Bạn không được phép thực hiện hành động này.'], Response::HTTP_FORBIDDEN); // 403
             }
             // Chỉ accept/reject được khi đang 'pending'
             if ($appointment->status !== 'pending') {
-                 return response()->json(['status' => 'error', 'message' => 'Không thể chấp nhận/từ chối lịch hẹn không ở trạng thái chờ.'], Response::HTTP_BAD_REQUEST); // 400
+                return response()->json(['status' => 'error', 'message' => 'Không thể chấp nhận/từ chối lịch hẹn không ở trạng thái chờ.'], Response::HTTP_BAD_REQUEST); // 400
             }
         } elseif ($newStatus === 'canceled') {
             // Cả sender và receiver đều được cancel
             if ($appointment->senderId != $userId && $appointment->receiverId != $userId) { // <-- camelCase
                 return response()->json(['status' => 'error', 'message' => 'Bạn không được phép thực hiện hành động này.'], Response::HTTP_FORBIDDEN); // 403
             }
-             // Có thể cancel từ 'pending' hoặc 'accepted'
-             if (!in_array($appointment->status, ['pending', 'accepted'])) {
-                  return response()->json(['status' => 'error', 'message' => 'Không thể hủy lịch hẹn ở trạng thái này.'], Response::HTTP_BAD_REQUEST); // 400
-             }
+            // Có thể cancel từ 'pending' hoặc 'accepted'
+            if (!in_array($appointment->status, ['pending', 'accepted'])) {
+                return response()->json(['status' => 'error', 'message' => 'Không thể hủy lịch hẹn ở trạng thái này.'], Response::HTTP_BAD_REQUEST); // 400
+            }
         }
         // --- Hết Logic Authorization ---
 
