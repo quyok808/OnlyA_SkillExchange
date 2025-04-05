@@ -178,4 +178,5 @@ class UserController extends Controller
 
         return response()->json(['message' => 'Password reset successfully.'], 200);
     }
+    
 }
