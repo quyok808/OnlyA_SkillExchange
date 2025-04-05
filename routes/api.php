@@ -3,6 +3,7 @@
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\AppointmentController; 
 
 // Public routes
 Route::post('/users/register', [UserController::class, 'register']); // Đăng ký
@@ -22,4 +23,8 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/users/search', [UserController::class, 'searchUser']); // Tìm kiếm user
     Route::get('/users/network', [UserController::class, 'searchUserInNetwork']); // Tìm kiếm trong mạng lưới
     Route::post('/users/skills', [UserController::class, 'addSkillToUser']); // Thêm kỹ năng cho user
+    Route::post('appointments', [AppointmentController::class, 'store']);
+    Route::get('/appointments/my', [AppointmentController::class, 'myAppointments'])->name('appointments.my');
+    Route::patch('/appointments/{appointment}/status', [AppointmentController::class, 'updateStatus'])->name('appointments.updateStatus');
+    Route::apiResource('appointments', AppointmentController::class)->except(['index']);
 });
