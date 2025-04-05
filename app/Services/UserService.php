@@ -4,7 +4,9 @@ namespace App\Services;
 
 use Exception;
 use App\Models\User;
+use App\Models\Skill;
 use App\Utils\APIFeatures;
+use Illuminate\Http\Request;
 use App\Models\BlacklistedToken;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\Log;
@@ -26,7 +28,7 @@ class UserService
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
                 'active' => false,
-                'photo' => 'defaultAvatar.jpg',
+                'photo' => 'photos/defaultAvatar.jpg',
                 'lock' => false,
                 'skill' => [],
                 'role' => 'user', // Thêm role mặc định
@@ -133,6 +135,35 @@ class UserService
         });
     }
 
+    public function sendResetPasswordEmail($email, $protocol, $host)
+    {
+        $user = User::where('email', $email)->firstOrFail();
+        $token = $user->createPasswordResetToken();
+        $user->save();
+
+        $url = "$protocol://$host/api/users/reset-password/$token";
+        $message = "Follow this link to reset your password: $url";
+
+        Mail::raw($message, function ($mail) use ($user) {
+            $mail->to($user->email)->subject('Email Reset Password');
+        });
+    }
+
+    public function resetPassword($password, $token)
+    {
+        $hashedToken = hash('sha256', $token);
+        $user = User::where('passwordResetToken', $hashedToken)
+            ->where('passwordResetExpires', '>', now())
+            ->first();
+        if (!$user) {
+            throw new \Exception('Invalid or expired token.', 400);
+        }
+        $user->password = Hash::make($password);
+        $user->passwordResetToken = null;
+        $user->passwordResetExpires = null;
+        $user->save();
+    }
+
     public function verifyEmail($token)
     {
         $hashedToken = hash('sha256', $token);
@@ -180,60 +211,314 @@ class UserService
     public function logout()
     {
         try {
-            $token = JWTAuth::getToken(); // Lấy token trước khi invalidate
+            $token = JWTAuth::getToken();
             if (!$token) {
                 return response()->json(['status' => 'error', 'message' => 'Token not provided.'], 400);
             }
 
-            BlacklistedToken::create([
-                'token' => $token, // Lưu token vào danh sách đen
-            ]);
-
-            JWTAuth::invalidate($token); // Vô hiệu hóa token
+            JWTAuth::invalidate($token);
 
             return response()->json(['status' => 'success', 'message' => 'Logout successful.'], 200);
         } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
-            // Token đã bị vô hiệu hóa hoặc không hợp lệ (có thể do đã đăng xuất)
             Log::warning('Token already invalid or expired during logout.', ['exception' => $e]);
             return response()->json(['status' => 'success', 'message' => 'Logout successful.'], 200); // Vẫn trả về thành công
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
-            // Lỗi khác liên quan đến JWT (ví dụ: không thể tạo token)
             Log::error('JWT Exception during logout.', ['exception' => $e]);
             return response()->json(['status' => 'error', 'message' => 'Failed to logout, please try again.'], 500);
         } catch (\Exception $e) {
-            // Bắt các lỗi không lường trước được
             Log::error('Unexpected error during logout.', ['exception' => $e]);
             return response()->json(['status' => 'error', 'message' => 'An unexpected error occurred.'], 500);
         }
     }
 
-    public function uploadAvatar(User $user, array $data): string
+    public function uploadAvatar(User $user, Request $request): string
     {
-        $validator = Validator::make($data, [
-            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        var_dump(
+            $request->all(),
+            $request->file('photo'),
+            $request->hasFile('photo'),
+            $_FILES
+        );
+        if (!$request->hasFile('photo')) {
+            throw new \Exception('The photo không tồn tại.', 400);
+        }
+        // Validate file trực tiếp
+        $validator = Validator::make(['photo' => $request->file('photo')], [
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
         ]);
 
         if ($validator->fails()) {
             throw new \Exception($validator->errors()->first(), 400);
         }
 
-        if (isset($data['photo'])) {
-            $file = $data['photo'];
-            $filename = 'user-' . $user->id . '-' . time() . '.' . $file->getClientOriginalExtension();
+        $file = $request->file('photo');
+        $filename = 'user-' . $user->id . '-' . time() . '.' . $file->getClientOriginalExtension();
 
-            $path = $file->storeAs('photos', $filename, 'public');
+        $path = $file->storeAs('photos', $filename, 'public');
 
-            // Xóa ảnh cũ nếu có
-            if ($user->photo && $user->photo !== 'default.jpg') {
-                Storage::disk('public')->delete($user->photo);
-            }
-
-            $user->photo = $path;
-            $user->save();
-
-            return asset('storage/' . $path);
+        if ($user->photo && $user->photo !== 'default.jpg') {
+            Storage::disk('public')->delete($user->photo);
         }
 
-        throw new \Exception('No photo uploaded.', 400);
+        $user->photo = $path;
+        $user->save();
+
+        return asset('storage/' . $path);
+    }
+
+    /**
+     * Update user profile information.
+     * Only allows updating specific fields.
+     */
+    public function updateMe(User $user, array $data): User
+    {
+        // Define fillable attributes for updateMe
+        $fillable = ['name', 'phone', 'address'];
+        $updateData = [];
+        foreach ($fillable as $field) {
+            if (isset($data[$field])) {
+                $updateData[$field] = $data[$field];
+            }
+        }
+
+        if (empty($updateData)) {
+            throw new \Exception('No valid fields provided for update.', 400);
+        }
+
+        // Update user
+        $user->fill($updateData);
+        $user->save();
+
+        // Reload relations if needed, e.g., skills
+        $user->load('skills');
+
+        return $user; // Return updated user
+    }
+
+    /**
+     * Change the user's password.
+     */
+    public function changePassword(User $user, array $data): void // Return void or bool
+    {
+        // Check current password
+        if (!Hash::check($data['passwordCurrent'], $user->password)) {
+            throw new \Exception(' current pasIncorrectsword.', 401); // 401 Unauthorized or 400 Bad Request
+        }
+
+        // Check if new password is same as old
+        if ($data['password'] === $data['passwordCurrent']) {
+            throw new \Exception('New password cannot be the same as the current password.', 400);
+        }
+
+        // Update password
+        $user->password = Hash::make($data['password']);
+        $user->passwordChangedAt = now();
+        $user->save();
+    }
+
+    /**
+     * Get a single user by their ID.
+     */
+    public function getUserById($id): User
+    {
+        $user = User::findOrFail($id); // Eager load skills
+        $user->load('skills');
+
+        return $user;
+    }
+
+    /**
+     * Search users based on query parameters.
+     */
+    public function searchUsers(array $query): array
+    {
+        $queryBuilder = User::query()->with('skills'); // Eager load skills
+
+        // --- Handle 'skillName' parameter ---
+        if (isset($query['skillName']) && !empty($query['skillName'])) {
+            $skillName = $query['skillName'];
+            $skillIds = Skill::where('name', 'like', '%' . $skillName . '%')
+                ->pluck('id')
+                ->toArray();
+
+            if (empty($skillIds)) {
+                // No skills match the criteria. Return a specific indicator or empty result.
+                // Option 1: Return an indicator
+                // return [
+                //     'status' => 'success_empty', // Custom status controller can check
+                //     'limit' => (new APIFeatures($queryBuilder, $query))->getLimit() // Still provide limit info
+                // ];
+                // Option 2: Return empty result structure directly (controller won't need special check)
+                return [
+                    'users' => [],
+                    'page' => 1,
+                    'limit' => (new APIFeatures($queryBuilder, $query))->getLimit(),
+                    'totalPages' => 0,
+                    'totalUsers' => 0,
+                ];
+            }
+            $queryBuilder->whereHas('skills', function ($q) use ($skillIds) {
+                $q->whereIn('skills.id', $skillIds);
+            });
+        }
+
+        // --- Handle 'name' parameter ---
+        if (isset($query['name']) && !empty($query['name'])) {
+            $searchTerm = $query['name'];
+            // Search name and potentially other fields
+            $queryBuilder->where(function ($q) use ($searchTerm) {
+                $q->where('users.name', 'like', '%' . $searchTerm . '%');
+                // ->orWhere('users.email', 'like', '%' . $searchTerm . '%'); // Uncomment to search email too
+            });
+        }
+
+        // --- Handle excluding a specific user ID ---
+        if (isset($query['exclude_user_id']) && !empty($query['exclude_user_id'])) {
+            $queryBuilder->where('users.id', '!=', $query['exclude_user_id']);
+        }
+
+        // --- Apply general filtering, sorting, pagination via APIFeatures ---
+        // Pass the already constrained queryBuilder to APIFeatures
+        $features = new APIFeatures($queryBuilder, $query);
+
+        // Apply sorting and *generic* filters from APIFeatures
+        // Make sure APIFeatures filter() doesn't conflict with your specific name/skill filters
+        $features->filter()->sort();
+
+        // Get Total Count *after* all filters are applied
+        // Clone to avoid issues with pagination state if count is needed before get()
+        $totalUsers = (clone $features->getQuery())->count();
+
+        // Apply pagination (limit/offset)
+        $users = $features->paginate()->getQuery()
+            ->select('users.id', 'users.name', 'users.email', 'users.photo', 'users.role') // Select desired columns
+            ->get(); // Execute the final query
+
+
+        // Format the results (similar to your original searchUsers, but using the fetched $users)
+        $formattedUsers = $users->map(function ($user) {
+            return [
+                '_id' => $user->id, // Use id or _id consistently
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'photo' => $user->photo ? asset('storage/' . $user->photo) : asset('storage/photos/defaultAvatar.jpg'),
+                'skills' => $user->skills, // Skills are already eager-loaded
+            ];
+        });
+
+
+        // Calculate pagination details
+        $limit = $features->getLimit();
+        $page = $features->getPage();
+        $totalPages = $limit > 0 ? ceil($totalUsers / $limit) : ($totalUsers > 0 ? 1 : 0);
+
+        // Return data structure expected by the controller
+        return [
+            'users' => $formattedUsers,
+            'page' => $page,
+            'limit' => $limit,
+            'totalPages' => $totalPages,
+            'totalUsers' => $totalUsers,
+        ];
+    }
+
+    /**
+     * Search for users within the network.
+     * FIXME: Requires a proper definition of "network".
+     * Currently behaves identically to searchUsers.
+     */
+    public function searchUsersInNetwork(User $currentUser, array $query): array
+    {
+        // --- Placeholder for Network Logic ---
+        // Example: If network means users followed by the current user:
+        // $followedUserIds = $currentUser->followings()->pluck('id')->toArray();
+        // $baseQuery = User::whereIn('id', $followedUserIds);
+        // --- End Placeholder ---
+
+        // For now, use the same logic as general search
+        Log::warning('searchUsersInNetwork called, but network logic is not defined. Using general search.');
+
+        // Create APIFeatures instance, potentially with a base query for the network if defined
+        // $apiFeatures = new APIFeatures($baseQuery->with('skills'), $query); // If network query exists
+        $apiFeatures = new APIFeatures(User::query()->with('skills'), $query); // Current implementation
+
+        // Add specific search logic if 'q' parameter exists
+        if (!empty($query['q'])) {
+            $searchTerm = $query['q'];
+            $apiFeatures->getQuery()->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('email', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        // Apply filtering, sorting, pagination
+        $users = $apiFeatures->filter()->sort()->paginate()->getQuery()->get();
+
+        // Get pagination details (Needs refinement if using a network base query)
+        // $countQuery = $baseQuery ? clone $baseQuery : User::query(); // If network query exists
+        $countQuery = User::query(); // Current implementation
+        $modelQuery = new APIFeatures($countQuery, $query);
+        if (!empty($query['q'])) {
+            $searchTerm = $query['q'];
+            $modelQuery->getQuery()->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('email', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+        $totalUsers = $modelQuery->filter()->getQuery()->count();
+
+        $limit = $apiFeatures->getLimit();
+        $page = $apiFeatures->getPage();
+        $totalPages = ceil($totalUsers / $limit);
+
+
+        // Format response
+        $formattedUsers = $users->map(function ($user) {
+            return [
+                '_id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'photo' => $user->photo ? asset('storage/' . $user->photo) : asset('storage/photos/defaultAvatar.jpg'),
+                'skills' => $user->skills,
+            ];
+        });
+
+        return [
+            'users' => $formattedUsers,
+            'page' => $page,
+            'limit' => $limit,
+            'totalPages' => $totalPages,
+            'totalUsers' => $totalUsers,
+        ];
+    }
+
+    /**
+     * Add skills to a user.
+     * Assumes a Many-to-Many relationship named 'skills' exists on the User model,
+     * and the input data contains an array of skill IDs under the key 'skills'.
+     */
+    public function addSkillsToUser(User $user, array $data): User
+    {
+        // Validate that the skill IDs exist in the 'skills' table
+        $skillIds = $data['skills'] ?? [];
+        if (empty($skillIds)) {
+            throw new \Exception('No skills provided.', 400);
+        }
+
+        // Ensure skill IDs actually exist in the database
+        $existingSkillsCount = Skill::whereIn('id', $skillIds)->count();
+        if ($existingSkillsCount !== count($skillIds)) {
+            throw new \Exception('One or more provided skills are invalid.', 400);
+        }
+
+        // Attach the skills (syncWithoutDetaching prevents duplicates and adding existing ones)
+        $user->skills()->syncWithoutDetaching($skillIds);
+
+        // Reload the skills relationship to include the newly added ones
+        $user->load('skills');
+
+        return $user;
     }
 }
