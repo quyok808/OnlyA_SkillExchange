@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller; // Import base Controller
 use Illuminate\Http\Request;
-use App\Models\User; // Import User model
-use App\Models\Report; // Import Report model (Giả định bạn có model này)
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Validator; // Import Validator facade
+use Illuminate\Support\Facades\Log;
+use App\Models\User; // Import User model
 use Illuminate\Validation\Rule; // Import Rule for validation
+use App\Http\Controllers\Controller; // Import base Controller
+use Illuminate\Support\Facades\Validator; // Import Validator facade
+use App\Models\Report; // Import Report model (Giả định bạn có model này)
 
 class AdminController extends Controller
 {
@@ -23,7 +24,7 @@ class AdminController extends Controller
         // if ($request->has('role')) { ... }
 
         $users = User::select('id', 'name', 'email', 'role', 'lock', 'active', 'created_at', 'photo') // Chọn các cột cần thiết
-                   ->paginate(15); // Phân trang
+            ->paginate(15); // Phân trang
 
         return response()->json($users); // Trả về dữ liệu phân trang chuẩn của Laravel
     }
@@ -75,12 +76,12 @@ class AdminController extends Controller
         return response()->json([
             'message' => $request->input('lock') ? 'User locked successfully.' : 'User unlocked successfully.',
             'data' => [ // Trả về thông tin user đã cập nhật (chỉ các trường cần thiết)
-                 'id' => $user->id,
-                 'name' => $user->name,
-                 'email' => $user->email,
-                 'lock' => $user->lock,
-                 'role' => $user->role,
-             ]
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'lock' => $user->lock,
+                'role' => $user->role,
+            ]
         ]);
     }
 
@@ -114,13 +115,13 @@ class AdminController extends Controller
 
         return response()->json([
             'message' => 'User role updated successfully.',
-             'data' => [ // Trả về thông tin user đã cập nhật
-                 'id' => $user->id,
-                 'name' => $user->name,
-                 'email' => $user->email,
-                 'lock' => $user->lock,
-                 'role' => $user->role,
-             ]
+            'data' => [ // Trả về thông tin user đã cập nhật
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'lock' => $user->lock,
+                'role' => $user->role,
+            ]
         ]);
     }
 
@@ -133,20 +134,19 @@ class AdminController extends Controller
         // Giả định bạn có Model 'Report' và muốn lấy tất cả báo cáo
         // Cần điều chỉnh logic này dựa trên cấu trúc bảng 'reports' thực tế của bạn
         try {
-             // Kiểm tra xem Model Report có tồn tại không
-             if (!class_exists(Report::class)) {
+            // Kiểm tra xem Model Report có tồn tại không
+            if (!class_exists(Report::class)) {
                 return response()->json(['message' => 'Report model not found.'], 500);
-             }
+            }
 
             // Lấy tất cả reports hoặc phân trang nếu cần
             $reports = Report::orderBy('created_at', 'desc')->paginate(20); // Ví dụ phân trang
 
             return response()->json($reports);
-
         } catch (\Exception $e) {
-             // Ghi log lỗi để debug
-             \Log::error('Error fetching connection reports: ' . $e->getMessage());
-             return response()->json(['message' => 'Could not fetch reports.'], 500); // Internal Server Error
+            // Ghi log lỗi để debug
+            Log::error('Error fetching connection reports: ' . $e->getMessage());
+            return response()->json(['message' => 'Could not fetch reports.'], 500); // Internal Server Error
         }
     }
 }
