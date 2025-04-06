@@ -12,12 +12,33 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('reports', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->enum('status', ['Processing', 'Completed', 'Canceled', 'Banned', 'Warning', 'Warned'])->default('Processing');
-            $table->text('reason');
-            $table->foreignUuid('reportedBy')->constrained('users')->cascadeOnDelete();
-            $table->foreignUuid('userId')->constrained('users')->cascadeOnDelete();
+            // Khóa chính tự tăng
+            $table->id();
+
+            // Người báo cáo (Sử dụng UUID vì User model dùng UUID)
+            $table->foreignUuid('userId') // <<< Đặt tên cột khớp DB của bạn
+                  ->comment('ID người dùng tạo báo cáo (reporter)')
+                  ->constrained('users') // Liên kết với bảng 'users', cột 'id'
+                  ->cascadeOnDelete(); // Xóa report nếu user bị xóa
+
+            // Người bị báo cáo (Sử dụng UUID)
+            $table->foreignUuid('reportedBy') // <<< Đặt tên cột khớp DB của bạn
+                  ->comment('ID người dùng bị báo cáo')
+                  ->constrained('users') // Liên kết với bảng 'users', cột 'id'
+                  ->cascadeOnDelete(); // Xóa report nếu user bị xóa
+
+            // Lý do và trạng thái
+            $table->string('reason');
+            // $table->text('details')->nullable(); // BỎ CỘT NÀY VÌ DB BẠN KHÔNG CÓ
+            $table->string('status')->default('pending')->comment('Trạng thái xử lý');
+
+            // Timestamps
             $table->timestamps();
+
+            // Indexes
+            $table->index('status');
+            $table->index('userId');       // Index cho người báo cáo
+            $table->index('reportedBy');   // Index cho người bị báo cáo
         });
     }
 
