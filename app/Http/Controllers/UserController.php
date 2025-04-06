@@ -228,6 +228,16 @@ class UserController extends Controller
         }
     }
 
+    public function getIDUsers()
+    {
+        $user = auth('api')->user();
+        $connections = $this->userService->getRelatedUserIds($user->id);
+        return response()->json([
+            'status' => 'success',
+            'data' => $connections
+        ], 200);
+    }
+
     /**
      * Search for users.
      */
@@ -302,7 +312,7 @@ class UserController extends Controller
     {
         try {
             $user = auth('api')->user();
-            $results = $this->userService->searchUsersInNetwork($user, $request->query());
+            $results = $this->userService->searchUsersInNetwork($user->id, $request->query());
             return response()->json([
                 'status' => 'success',
                 'data' => $results
@@ -406,5 +416,31 @@ class UserController extends Controller
             ]
         ], 200);
     }
-    
+
+    public function getRelatedUserIds()
+    {
+        $user = auth('api')->user();
+        $userIds = $this->userService->getRelatedUserIds($user->id);
+        return response()->json([
+            'status' => 'success',
+            'data' => $userIds
+        ], 200);
+    }
+
+    public function getNameById($id)
+    {
+        $user = User::find($id);
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'User not found.'
+            ], 404);
+        }
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'name' => $user->name
+            ]
+        ], 200);
+    }
 }

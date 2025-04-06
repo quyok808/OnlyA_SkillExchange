@@ -7,6 +7,7 @@ use App\Http\Controllers\ConnectionController;
 use App\Http\Controllers\AdminController;
 use App\Http\Middleware\IsAdmin;
 use App\Http\Controllers\AppointmentController;
+use App\Models\User;
 
 // Public routes
 Route::post('/users/register', [UserController::class, 'register']); // Đăng ký
@@ -17,51 +18,68 @@ Route::get('/users/verify-email/{token}', [UserController::class, 'verifyEmail']
 
 // Protected routes (yêu cầu JWT authentication)
 Route::middleware('auth:api')->group(function () {
+    Route::get('/users/name/{id}', [UserController::class, 'getNameById']);
+    Route::get('/users/getUserID', [UserController::class, 'getRelatedUserIds']);
+    Route::get('/users/search-user-in-network', [UserController::class, 'searchUserInNetwork']); // Tìm kiếm trong mạng lưới
     Route::get('/users/search', [UserController::class, 'searchUser']); // Tìm kiếm user
     Route::get('/users', [UserController::class, 'getAllUsers']); // Lấy tất cả users
     Route::get('/users/me', [UserController::class, 'me']); // Lấy thông tin user hiện tại
     Route::get('/users/{id}', [UserController::class, 'getUserById']); // Lấy thông tin user theo ID
-    Route::get('/users/network', [UserController::class, 'searchUserInNetwork']); // Tìm kiếm trong mạng lưới
     Route::post('/users/skills', [UserController::class, 'addSkillToUser']); // Thêm kỹ năng cho user
-    //Routers connection
-    Route::post('/connections/send-request', [ConnectionController::class, 'sendRequest']); // Gửi yêu cầu kết bạn
-    Route::post('/connections/accept-request/{connection_id}', [ConnectionController::class, 'acceptRequest']); // Chấp nhận kết bạn
-    Route::post('/connections/decline-request/{connection_id}', [ConnectionController::class, 'declineRequest']); // Từ chối kết bạn
-    Route::post('/connections/cancel-request', [ConnectionController::class, 'cancelRequest']); // Hủy yêu cầu kết bạn
-    Route::post('/connections/remove-friend', [ConnectionController::class, 'removeFriend']); // Xóa bạn
-    Route::get('users/profile/image', [UserController::class, 'getProfileImage']);
-    Route::get('users/profile/image/{id}', [UserController::class, 'getProfileImageById']);
+    Route::get('/users/profile/image', [UserController::class, 'getProfileImage']);
+    Route::get('/users/profile/image/{id}', [UserController::class, 'getProfileImageById']);
     Route::put('/users/update-profile', [UserController::class, 'updateMe']); // Cập nhật thông tin user
     Route::post('/users/logout', [UserController::class, 'logout']); // Đăng xuất
     Route::put('/users/change-password', [UserController::class, 'changePassword']); // Đổi mật khẩu
     Route::post('/users/upload-photo', [UserController::class, 'uploadAvatar']); // Tải ảnh đại diện
     Route::put('/users/add-skill', [UserController::class, 'addSkillToUser']); // Thêm kỹ năng cho user
+
+    //Routers connection
+    // GET /api/connections (Lấy tất cả liên quan) - Tương đương getAllrequests
+    Route::get('/connections', [ConnectionController::class, 'index']);
+    // GET /api/connections/pending (Lấy đang chờ)
+    Route::get('/connections/pending', [ConnectionController::class, 'pending']);
+    // GET /api/connections/accepted (Lấy đã chấp nhận)
+    Route::get('/connections/accepted', [ConnectionController::class, 'accepted']);
+    // POST /api/connections (Gửi yêu cầu) - Tương đương sendRequest
+    Route::post('/connections/request', [ConnectionController::class, 'store']);
+    // GET /api/connections/status/{user} (Kiểm tra trạng thái với user cụ thể)
+    Route::get('/connections/status/{userID}', [ConnectionController::class, 'status']); // {user} sẽ là ID của người kia
+    // PATCH /api/connections/{connection}/accept (Chấp nhận yêu cầu)
+    Route::put('/connections/{connection}/accept', [ConnectionController::class, 'accept']);
+    // DELETE /api/connections/{connection}/reject (Từ chối yêu cầu - theo logic gốc là xóa)
+    Route::put('/connections/{connection}/reject', [ConnectionController::class, 'reject']);
+    // DELETE /api/connections/cancel/{receiver} (Hủy yêu cầu đã gửi)
+    Route::delete('/connections/cancel/{receiver}', [ConnectionController::class, 'cancel']); // {receiver} là ID người nhận
+    // DELETE /api/connections/disconnect (Hủy kết nối đã chấp nhận)
+    Route::delete('/connections/disconnect', [ConnectionController::class, 'disconnect']); // Dùng request body như gốc
+
     //Appointment
     Route::post('/appointments', [AppointmentController::class, 'store']);
-    Route::get('/appointments/my', [AppointmentController::class, 'myAppointments'])->name('appointments.my');
-    Route::patch('/appointments/{appointment}/status', [AppointmentController::class, 'updateStatus'])->name('appointments.updateStatus');
+    Route::get('/appointments', [AppointmentController::class, 'myAppointments'])->name('appointments.my');
+    Route::put('/appointments/{appointment}', [AppointmentController::class, 'updateStatus'])->name('appointments.updateStatus');
     Route::apiResource('appointments', AppointmentController::class)->except(['index']);
 });
 // --- Admin Routes (Require JWT Auth + Admin Role) ---
 // Áp dụng 'auth:api' trước, sau đó là 'admin' middleware đã tạo
 Route::middleware(['auth:api', IsAdmin::class]) // <<<=== THAY ĐỔI Ở ĐÂY
-    ->prefix('admin')
+    ->prefix('admins')
     ->name('api.admin.')
     ->group(function () {
         // GET /api/admin/users - Admin lấy TẤT CẢ người dùng
-        Route::get('/users', [AdminController::class, 'getAllUsers'])->name('users.index');
+        Route::get('/', [AdminController::class, 'getAllUsers'])->name('users.index');
 
         // DELETE /api/admin/users/{id} - Admin xóa người dùng
-        Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])->name('users.delete');
+        Route::delete('/{id}', [AdminController::class, 'deleteUser'])->name('users.delete');
 
         // PATCH /api/admin/users/{id}/lock - Admin khóa/mở khóa người dùng
-        Route::patch('/users/{id}/lock', [AdminController::class, 'lockUser'])->name('users.lock');
+        Route::patch('/{id}/lock', [AdminController::class, 'lockUser'])->name('users.lock');
 
         // PATCH /api/admin/users/{id}/role - Admin thay đổi vai trò người dùng
-        Route::patch('/users/{id}/role', [AdminController::class, 'changeRole'])->name('users.role');
+        Route::patch('/{id}/role', [AdminController::class, 'changeRole'])->name('users.role');
 
         // GET /api/admin/reports/connections - Admin lấy báo cáo kết nối (ví dụ)
-        Route::get('/reports/connections', [AdminController::class, 'getConnectionReports'])->name('reports.connections');
+        Route::get('/connection-report', [AdminController::class, 'getConnectionReports'])->name('reports.connections');
 
         // Thêm các route admin khác nếu cần...
     });
