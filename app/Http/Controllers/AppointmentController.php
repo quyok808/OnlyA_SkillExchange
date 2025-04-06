@@ -240,9 +240,12 @@ class AppointmentController extends Controller
         // --- Logic Authorization từ Handler ---
         if (in_array($newStatus, ['accepted', 'rejected'])) {
             // Chỉ receiver mới được accept/reject
-            if ($appointment->receiverId != $userId) { // <-- camelCase
-                return response()->json(['status' => 'error', 'message' => 'Bạn không được phép thực hiện hành động này.'], Response::HTTP_FORBIDDEN); // 403
-            }
+            // if ($appointment->receiverId != $userId) { // <-- camelCase
+            //     return response()->json(['status' => 'error', 'message' => 'Bạn không được phép thực hiện hành động này.'], Response::HTTP_FORBIDDEN); // 403
+            // }
+            // if ($appointment->senderId != $userId) {
+            //     return response()->json(['status' => 'error', 'message' => 'Bạn không được phép thực hiện hành động này.'], Response::HTTP_FORBIDDEN); // 403
+            // }
             // Chỉ accept/reject được khi đang 'pending'
             if ($appointment->status !== 'pending') {
                 return response()->json(['status' => 'error', 'message' => 'Không thể chấp nhận/từ chối lịch hẹn không ở trạng thái chờ.'], Response::HTTP_BAD_REQUEST); // 400

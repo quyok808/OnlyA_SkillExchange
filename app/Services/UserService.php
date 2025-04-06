@@ -5,6 +5,7 @@ namespace App\Services;
 use Exception;
 use App\Models\User;
 use App\Models\Skill;
+use App\Models\Connection;
 use App\Utils\APIFeatures;
 use Illuminate\Http\Request;
 use App\Models\BlacklistedToken;
@@ -428,52 +429,100 @@ class UserService
      * FIXME: Requires a proper definition of "network".
      * Currently behaves identically to searchUsers.
      */
-    public function searchUsersInNetwork(User $currentUser, array $query): array
+    public function searchUsersInNetwork($currentUserId, array $query): array
     {
-        // --- Placeholder for Network Logic ---
-        // Example: If network means users followed by the current user:
-        // $followedUserIds = $currentUser->followings()->pluck('id')->toArray();
-        // $baseQuery = User::whereIn('id', $followedUserIds);
-        // --- End Placeholder ---
+        // --- Xác định ID của những người dùng đã kết nối ---
+        $acceptedStatus = 'accepted'; // Hoặc giá trị trạng thái chấp nhận của bạn
 
-        // For now, use the same logic as general search
-        Log::warning('searchUsersInNetwork called, but network logic is not defined. Using general search.');
+        // Lấy ID của những người mà currentUserId đã gửi request và được chấp nhận
+        $receiverIds = Connection::where('senderId', $currentUserId)
+            ->where('status', $acceptedStatus)
+            ->pluck('receiverId');
 
-        // Create APIFeatures instance, potentially with a base query for the network if defined
-        // $apiFeatures = new APIFeatures($baseQuery->with('skills'), $query); // If network query exists
-        $apiFeatures = new APIFeatures(User::query()->with('skills'), $query); // Current implementation
+        // Lấy ID của những người đã gửi request cho currentUserId và được chấp nhận
+        $senderIds = Connection::where('receiverId', $currentUserId)
+            ->where('status', $acceptedStatus)
+            ->pluck('senderId');
 
-        // Add specific search logic if 'q' parameter exists
-        if (!empty($query['q'])) {
-            $searchTerm = $query['q'];
-            $apiFeatures->getQuery()->where(function ($q) use ($searchTerm) {
-                $q->where('name', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('email', 'LIKE', "%{$searchTerm}%");
+        // Gộp và lấy các ID duy nhất của những người dùng đã kết nối
+        $connectedUserIds = $receiverIds->merge($senderIds)->unique()->values()->all();
+
+        // Nếu không có ai trong network, trả về kết quả rỗng ngay lập tức
+        if (empty($connectedUserIds)) {
+            // Lấy limit từ query để trả về cấu trúc nhất quán
+            $limit = (new APIFeatures(User::query(), $query))->getLimit();
+            return [
+                'users' => [],
+                'page' => 1,
+                'limit' => $limit,
+                'totalPages' => 0,
+                'totalUsers' => 0,
+            ];
+        }
+
+        // --- Bắt đầu xây dựng query cho User ---
+        // Chỉ lấy những user có ID nằm trong danh sách đã kết nối
+        // và loại trừ chính người dùng hiện tại
+        $queryBuilder = User::query()
+            ->with('skills') // Eager load skills
+            ->whereIn('id', $connectedUserIds) // *** Chỉ lấy user trong network ***
+            ->where('id', '!=', $currentUserId); // *** Loại trừ chính mình ***
+
+        // --- Handle 'skillName' parameter ---
+        if (isset($query['skillName']) && !empty($query['skillName'])) {
+            $skillName = $query['skillName'];
+            $skillIds = Skill::where('name', 'like', '%' . $skillName . '%')
+                ->pluck('id')
+                ->toArray();
+
+            if (empty($skillIds)) {
+                // Không có skill nào khớp -> không có user nào khớp trong network thỏa mãn skill
+                $limit = (new APIFeatures(clone $queryBuilder, $query))->getLimit(); // Clone để lấy limit
+                return [
+                    'users' => [],
+                    'page' => 1,
+                    'limit' => $limit,
+                    'totalPages' => 0,
+                    'totalUsers' => 0,
+                ];
+            }
+            $queryBuilder->whereHas('skills', function ($q) use ($skillIds) {
+                $q->whereIn('skills.id', $skillIds);
             });
         }
 
-        // Apply filtering, sorting, pagination
-        $users = $apiFeatures->filter()->sort()->paginate()->getQuery()->get();
-
-        // Get pagination details (Needs refinement if using a network base query)
-        // $countQuery = $baseQuery ? clone $baseQuery : User::query(); // If network query exists
-        $countQuery = User::query(); // Current implementation
-        $modelQuery = new APIFeatures($countQuery, $query);
-        if (!empty($query['q'])) {
-            $searchTerm = $query['q'];
-            $modelQuery->getQuery()->where(function ($q) use ($searchTerm) {
-                $q->where('name', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('email', 'LIKE', "%{$searchTerm}%");
+        // --- Handle 'name' parameter ---
+        if (isset($query['name']) && !empty($query['name'])) {
+            $searchTerm = $query['name'];
+            $queryBuilder->where(function ($q) use ($searchTerm) {
+                // Laravel >= 9 không cần chỉ định users.name khi không có join phức tạp
+                $q->where('name', 'like', '%' . $searchTerm . '%');
+                // ->orWhere('email', 'like', '%' . $searchTerm . '%');
             });
         }
-        $totalUsers = $modelQuery->filter()->getQuery()->count();
 
-        $limit = $apiFeatures->getLimit();
-        $page = $apiFeatures->getPage();
-        $totalPages = ceil($totalUsers / $limit);
+        // --- Handle excluding a specific user ID (ngoài currentUserId) ---
+        // Điều này hữu ích nếu bạn muốn lọc bỏ một người dùng cụ thể *khác* khỏi kết quả tìm kiếm network
+        if (isset($query['exclude_user_id']) && !empty($query['exclude_user_id'])) {
+            // Đảm bảo không loại trừ chính người đang tìm kiếm nếu họ vô tình truyền vào
+            if ($query['exclude_user_id'] != $currentUserId) {
+                $queryBuilder->where('id', '!=', $query['exclude_user_id']);
+            }
+        }
 
+        // --- Apply general filtering, sorting, pagination via APIFeatures ---
+        $features = new APIFeatures($queryBuilder, $query);
+        $features->filter()->sort(); // Apply generic filters and sorting
 
-        // Format response
+        // Get Total Count *after* all filters are applied
+        $totalUsers = (clone $features->getQuery())->count(); // Clone before pagination
+
+        // Apply pagination and select columns
+        $users = $features->paginate()->getQuery()
+            ->select('users.id', 'users.name', 'users.email', 'users.photo', 'users.role')
+            ->get();
+
+        // Format the results
         $formattedUsers = $users->map(function ($user) {
             return [
                 '_id' => $user->id,
@@ -481,10 +530,23 @@ class UserService
                 'email' => $user->email,
                 'role' => $user->role,
                 'photo' => $user->photo ? asset('storage/' . $user->photo) : asset('storage/photos/defaultAvatar.jpg'),
-                'skills' => $user->skills,
+                // Map skills để trả về cấu trúc mong muốn (nếu cần)
+                'skills' => $user->skills->map(function ($skill) {
+                    return [
+                        'id' => $skill->id,
+                        'name' => $skill->name,
+                        // 'description' => $skill->description, // Ví dụ thêm trường khác
+                    ];
+                }),
             ];
         });
 
+        // Calculate pagination details
+        $limit = $features->getLimit();
+        $page = $features->getPage();
+        $totalPages = $limit > 0 ? ceil($totalUsers / $limit) : ($totalUsers > 0 ? 1 : 0);
+
+        // Return data structure
         return [
             'users' => $formattedUsers,
             'page' => $page,
@@ -520,5 +582,37 @@ class UserService
         $user->load('skills');
 
         return $user;
+    }
+
+    public function getRelatedUserIds($currentUserId)
+    {
+        try {
+            // 1. Tìm tất cả các connections mà currentUserId là sender hoặc receiver
+            $connections = Connection::where(function ($query) use ($currentUserId) {
+                $query->where('senderId', $currentUserId)
+                    ->orWhere('receiverId', $currentUserId);
+            })
+                ->select('senderId', 'receiverId') // Chỉ lấy các trường cần thiết
+                ->get(); // Lấy kết quả dưới dạng Collection
+
+            // 2. Duyệt qua các connections và lấy userId còn lại
+            $relatedUserIds = $connections->map(function ($connection) use ($currentUserId) {
+                // Sử dụng so sánh không chặt chẽ (==) để linh hoạt với kiểu dữ liệu (int/string)
+                // Hoặc ép kiểu nếu bạn chắc chắn về kiểu dữ liệu: (string)$connection->senderId === (string)$currentUserId
+                if ($connection->senderId == $currentUserId) {
+                    return $connection->receiverId;
+                } else { // ($connection->receiverId == $currentUserId)
+                    return $connection->senderId;
+                }
+            });
+
+            // 3. Loại bỏ các giá trị trùng lặp và trả về Collection đã được sắp xếp lại key
+            return $relatedUserIds->unique()->values();
+        } catch (Exception $error) {
+            // Ghi log lỗi để dễ dàng debug
+            Log::error("Lỗi khi lấy related user IDs cho user {$currentUserId}: " . $error->getMessage());
+            // Ném lại lỗi để tầng gọi có thể xử lý
+            throw $error;
+        }
     }
 }
