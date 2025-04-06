@@ -3,6 +3,7 @@
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ConnectionController;
 use App\Http\Controllers\AdminController;
 use App\Http\Middleware\IsAdmin;
 use App\Http\Controllers\AppointmentController;
@@ -22,6 +23,12 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/users/{id}', [UserController::class, 'getUserById']); // Lấy thông tin user theo ID
     Route::get('/users/network', [UserController::class, 'searchUserInNetwork']); // Tìm kiếm trong mạng lưới
     Route::post('/users/skills', [UserController::class, 'addSkillToUser']); // Thêm kỹ năng cho user
+    //Routers connection
+    Route::post('/connections/send-request', [ConnectionController::class, 'sendRequest']); // Gửi yêu cầu kết bạn
+    Route::post('/connections/accept-request/{connection_id}', [ConnectionController::class, 'acceptRequest']); // Chấp nhận kết bạn
+    Route::post('/connections/decline-request/{connection_id}', [ConnectionController::class, 'declineRequest']); // Từ chối kết bạn
+    Route::post('/connections/cancel-request', [ConnectionController::class, 'cancelRequest']); // Hủy yêu cầu kết bạn
+    Route::post('/connections/remove-friend', [ConnectionController::class, 'removeFriend']); // Xóa bạn
     Route::get('users/profile/image', [UserController::class, 'getProfileImage']);
     Route::get('users/profile/image/{id}', [UserController::class, 'getProfileImageById']);
     Route::put('/users/update-profile', [UserController::class, 'updateMe']); // Cập nhật thông tin user
@@ -29,6 +36,7 @@ Route::middleware('auth:api')->group(function () {
     Route::put('/users/change-password', [UserController::class, 'changePassword']); // Đổi mật khẩu
     Route::post('/users/upload-photo', [UserController::class, 'uploadAvatar']); // Tải ảnh đại diện
     Route::put('/users/add-skill', [UserController::class, 'addSkillToUser']); // Thêm kỹ năng cho user
+    //Appointment
     Route::post('/appointments', [AppointmentController::class, 'store']);
     Route::get('/appointments/my', [AppointmentController::class, 'myAppointments'])->name('appointments.my');
     Route::patch('/appointments/{appointment}/status', [AppointmentController::class, 'updateStatus'])->name('appointments.updateStatus');
