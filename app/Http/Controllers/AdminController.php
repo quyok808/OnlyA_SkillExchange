@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Connection;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\User; // Import User model
 use Illuminate\Validation\Rule; // Import Rule for validation
@@ -129,24 +131,42 @@ class AdminController extends Controller
      * Lấy báo cáo kết nối (ví dụ).
      * Cần có model Report và cấu trúc bảng reports tương ứng.
      */
-    public function getConnectionReports(): JsonResponse
+    public function getConnectionReports(Request $request): JsonResponse
     {
-        // Giả định bạn có Model 'Report' và muốn lấy tất cả báo cáo
-        // Cần điều chỉnh logic này dựa trên cấu trúc bảng 'reports' thực tế của bạn
         try {
-            // Kiểm tra xem Model Report có tồn tại không
-            if (!class_exists(Report::class)) {
-                return response()->json(['message' => 'Report model not found.'], 500);
-            }
+            $connections = Connection::query() // Start query on the Connection model
+                ->select(
+                    // Extract year from created_at and alias it as 'year'
+                    DB::raw('YEAR(created_at) as year'),
+                    // Extract month from created_at and alias it as 'month'
+                    DB::raw('MONTH(created_at) as month'),
+                    // Count the records in each group and alias it as 'total'
+                    DB::raw('COUNT(*) as total')
+                )
+                // Group the results by the extracted year and month
+                // Use groupByRaw for database functions
+                ->groupByRaw('YEAR(created_at), MONTH(created_at)')
+                // Sort the results first by year ascending
+                ->orderBy('year', 'asc')
+                // Then sort by month ascending within each year
+                ->orderBy('month', 'asc')
+                // Execute the query and retrieve the results as a collection
+                ->get();
 
-            // Lấy tất cả reports hoặc phân trang nếu cần
-            $reports = Report::orderBy('created_at', 'desc')->paginate(20); // Ví dụ phân trang
+            // Return the results as a JSON response
+            return response()->json($connections);
+        } catch (\Exception $error) {
+            // Log the error for debugging purposes
+            Log::error('Error fetching total connections per month: ' . $error->getMessage(), [
+                'exception' => $error // Optionally log the full exception trace
+            ]);
 
-            return response()->json($reports);
-        } catch (\Exception $e) {
-            // Ghi log lỗi để debug
-            Log::error('Error fetching connection reports: ' . $e->getMessage());
-            return response()->json(['message' => 'Could not fetch reports.'], 500); // Internal Server Error
+            // Return a generic error response to the client
+            return response()->json([
+                'message' => 'An error occurred while retrieving connection statistics.',
+                // Optionally include error details in non-production environments
+                // 'error' => $error->getMessage()
+            ], 500); // Internal Server Error status code
         }
     }
 }
