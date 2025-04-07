@@ -35,6 +35,12 @@ class User extends Authenticatable implements JWTSubject
         return $this->belongsToMany(Skill::class, 'user_skills', 'userId', 'skillId');
     }
 
+    public function reports(): HasMany
+    {
+        return $this->hasMany(Report::class, 'userId', 'id');
+    }
+
+
     /**
      * Quan hệ: Lấy tất cả các báo cáo được tạo bởi người dùng này.
      * Sửa foreign key thành 'userId'.

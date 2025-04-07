@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Connection;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -20,15 +21,107 @@ class AdminController extends Controller
      */
     public function getAllUsers(Request $request): JsonResponse
     {
-        // Có thể thêm logic lọc, sắp xếp ở đây nếu cần
-        // $users = User::query();
-        // if ($request->has('sort')) { ... }
-        // if ($request->has('role')) { ... }
 
-        $users = User::select('id', 'name', 'email', 'role', 'lock', 'active', 'created_at', 'photo') // Chọn các cột cần thiết
-            ->paginate(15); // Phân trang
+        try {
+            // --- 1. Lấy tham số từ Request và đặt giá trị mặc định ---
+            $perPage = $request->query('limit', 15);
+            $sortParam = $request->query('sort', 'created_at');
+            $filters = $request->query('filter', []);
 
-        return response()->json($users); // Trả về dữ liệu phân trang chuẩn của Laravel
+            // --- 2. Bắt đầu xây dựng Query Eloquent ---
+            $query = User::query();
+
+            // --- 3. Chọn các cột cần thiết ---
+            $query->select([
+                'id',
+                'name',
+                'email',
+                'role',
+                'address',
+                'phone', // Thêm các cột cần thiết khác
+                'lock',
+                'active',
+                'created_at',
+                'photo'
+            ]);
+
+            // --- 4. Đếm số lượng reports liên quan (SỬ DỤNG withCount TRƯỚC paginate) ---
+            // Giả sử bạn muốn đếm số report mà user này TẠO RA (dùng quan hệ 'createdReports')
+            // Nếu bạn muốn đếm TẤT CẢ report liên quan (cả tạo và bị nhận), bạn cần sửa quan hệ hoặc dùng cách khác phức tạp hơn.
+            // Đổi 'createdReports' thành tên quan hệ đúng trong User model của bạn.
+            $query->withCount([
+                'createdReports as createdReportCount', // Đếm số report đã tạo (sử dụng alias)
+                'receivedReports as reportCount' // Đếm số report bị nhận (sử dụng alias)
+                // Hoặc nếu bạn chỉ có một quan hệ 'reports' chung chung:
+                // 'reports as reportCount'
+            ]);
+
+            // --- 5. Áp dụng Bộ lọc (Filters) ---
+            if (!empty($filters)) {
+                // (Thêm logic lọc như các ví dụ trước)
+                if (isset($filters['name'])) {
+                    $query->where('name', 'like', '%' . $filters['name'] . '%');
+                }
+                if (isset($filters['email'])) {
+                    $query->where('email', $filters['email']);
+                }
+                // ... thêm các filter khác ...
+                if (isset($filters['role'])) {
+                    $query->where('role', $filters['role']);
+                }
+                if (isset($filters['lock']) && $filters['lock'] !== '') {
+                    $lockValue = filter_var($filters['lock'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                    if ($lockValue !== null) {
+                        $query->where('lock', $lockValue);
+                    }
+                }
+                if (isset($filters['active']) && $filters['active'] !== '') {
+                    $activeValue = filter_var($filters['active'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                    if ($activeValue !== null) {
+                        $query->where('active', $activeValue);
+                    }
+                }
+            }
+
+            // --- 6. Áp dụng Sắp xếp (Sorting) ---
+            $sortField = ltrim($sortParam, '-');
+            $sortDirection = Str::startsWith($sortParam, '-') ? 'desc' : 'asc';
+
+            // Danh sách các trường được phép sắp xếp (bao gồm cả các trường count)
+            $allowedSorts = [
+                'id',
+                'name',
+                'email',
+                'role',
+                'lock',
+                'active',
+                'created_at',
+                'createdReportCount',
+                'reportCount' // Đảm bảo khớp với alias trong withCount
+                // 'reportCount' // Nếu bạn dùng alias này
+            ];
+            if (!in_array($sortField, $allowedSorts)) {
+                $sortField = 'created_at';
+                $sortDirection = 'asc';
+            }
+            // Áp dụng sắp xếp
+            $query->orderBy($sortField, $sortDirection);
+
+            // --- 7. Phân trang Kết quả (SAU KHI đã áp dụng select, withCount, where, orderBy) ---
+            $paginator = $query->paginate($perPage);
+
+            // --- 8. Trả về JSON Response ---
+            return response()->json($paginator);
+        } catch (\Exception $error) {
+            // --- 9. Xử lý Lỗi ---
+            Log::error('Lỗi khi lấy danh sách người dùng: ' . $error->getMessage(), [
+                'exception' => $error,
+                'request_data' => $request->all()
+            ]);
+            return response()->json([
+                'message' => 'Đã xảy ra lỗi khi truy vấn danh sách người dùng.',
+            ], 500);
+        }
     }
 
     /**
@@ -154,7 +247,7 @@ class AdminController extends Controller
                 ->get();
 
             // Return the results as a JSON response
-            return response()->json($connections);
+            return response()->json(['status' => 'success', 'data' => $connections], 200);
         } catch (\Exception $error) {
             // Log the error for debugging purposes
             Log::error('Error fetching total connections per month: ' . $error->getMessage(), [
