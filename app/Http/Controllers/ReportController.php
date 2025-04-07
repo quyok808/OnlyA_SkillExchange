@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Database\Eloquent\Builder;
 
+use function Laravel\Prompts\warning;
+
 class ReportController extends Controller
 {
     /**
@@ -113,7 +115,7 @@ class ReportController extends Controller
     {
         Gate::authorize('update', $report);
         $validated = $request->validate([
-            'status' => ['required', 'string', Rule::in(['pending', 'reviewed', 'resolved', 'rejected'])],
+            'status' => ['required', 'string', Rule::in(['pending', 'reviewed', 'resolved', 'rejected', "warning", "warned"])],
         ]);
         $report->update(['status' => $validated['status']]);
         $report->load(['user:id,name,email', 'reportedByUser:id,name,email']);
@@ -130,7 +132,7 @@ class ReportController extends Controller
         $user = Auth::user();
 
         $warningCount = $user->receivedReports()
-            ->whereIn('status', ['reviewed', 'resolved', 'rejected'])
+            ->whereIn('status', ['warning'])
             ->count();
 
         if ($warningCount > 0) {
