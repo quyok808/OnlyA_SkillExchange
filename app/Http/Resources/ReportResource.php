@@ -17,11 +17,19 @@ class ReportResource extends JsonResource
         return [
             'id' => $this->id,
             'reason' => $this->reason,
-            'status' => $this->status,           // Trạng thái report
-            'reportedBy' => $this->reportedBy, // ID người BỊ báo cáo
-            'userId' => $this->userId,         // ID người báo cáo (người tạo)
-            'createdAt' => $this->created_at?->toIso8601String(),
-            'updatedAt' => $this->updated_at?->toIso8601String(),
+            'status' => $this->status,
+            'createdAt' => $this->created_at->toISOString(),
+            'updatedAt' => $this->updated_at->toISOString(),
+            'userId' => [
+                'id' => $this->user->id,
+                'name' => $this->user->name,
+                'email' => $this->user->email,
+            ],
+            'reportedBy' => [
+                'id' => $this->reportedByUser->id,
+                'name' => $this->reportedByUser->name,
+                'email' => $this->reportedByUser->email,
+            ],
         ];
     }
 }

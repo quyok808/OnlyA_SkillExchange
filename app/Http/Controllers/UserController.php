@@ -59,7 +59,7 @@ class UserController extends Controller
             $token = $this->userService->login($request->validated());
             return response()->json(['status' => 'success', 'token' => $token], 200);
         } catch (\Exception $e) {
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], $e->getCode() ?: 500);
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -104,7 +104,7 @@ class UserController extends Controller
             return response()->json([
                 'message' => $e->getMessage(),
                 'code' => $e->getCode()
-            ], $e->getCode() ?: 400);
+            ], 400);
         }
     }
 
@@ -127,7 +127,7 @@ class UserController extends Controller
 
             return response()->json(['status' => 'success', 'message' => 'Photo uploaded successfully.', 'photo_url' => $photoUrl], 200);
         } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], $e->getCode() ?: 400);
+            return response()->json(['message' => $e->getMessage()], 400);
         }
     }
 

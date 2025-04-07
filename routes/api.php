@@ -64,34 +64,34 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/appointments', [AppointmentController::class, 'myAppointments'])->name('appointments.my');
     Route::put('/appointments/{appointment}', [AppointmentController::class, 'updateStatus'])->name('appointments.updateStatus');
     Route::apiResource('appointments', AppointmentController::class)->except(['index']);
-  
-  // ==============================
+
+    // ==============================
     // --- Report Routes ---
     // ==============================
     Route::prefix('reports') // Tiền tố URL: /api/reports/...
-         ->name('reports.') // Tiền tố tên route: reports....
-         ->controller(ReportController::class) // Chỉ định Controller
-         ->group(function () {
+        ->name('reports.') // Tiền tố tên route: reports....
+        ->controller(ReportController::class) // Chỉ định Controller
+        ->group(function () {
 
-        // -- Routes cho mọi user đã đăng nhập --
-        Route::post('/', 'store')->name('store');             // Tạo report
-        Route::get('/get-warning', 'getWarning')->name('getWarning'); // Lấy cảnh báo
-        Route::delete('/{report}', 'destroy')->name('destroy');      // Xóa report (Policy check quyền)
+            // -- Routes cho mọi user đã đăng nhập --
+            Route::post('/', 'store')->name('store');             // Tạo report
+            Route::get('/get-warning', 'getWarning')->name('getWarning'); // Lấy cảnh báo
+            Route::delete('/{report}', 'destroy')->name('destroy');      // Xóa report (Policy check quyền)
 
-        // -- Routes chỉ dành cho Admin --
-        // Áp dụng middleware CheckIsAdmin trực tiếp bằng tên class
-        Route::middleware(CheckIsAdmin::class)->group(function() {
+            // -- Routes chỉ dành cho Admin --
+            // Áp dụng middleware CheckIsAdmin trực tiếp bằng tên class
+            Route::middleware(CheckIsAdmin::class)->group(function () {
 
-            Route::get('/', 'index')->name('index');                 // Lấy danh sách report
-            Route::get('/{report}', 'show')->name('show');           // Xem chi tiết report
-            Route::put('/change-status/{report}', 'changeStatus')->name('changeStatus'); // Đổi status (route riêng)
-            Route::put('/{report}', 'update')->name('update');         // Update report (dùng UpdateReportRequest)
-            // Xem xét chuyển Route::delete vào đây nếu chỉ Admin được xóa
-            // Route::delete('/{report}', 'destroy')->name('destroy.admin'); // Đổi tên route nếu cần
+                Route::get('/', 'index')->name('index');                 // Lấy danh sách report
+                Route::get('/{report}', 'show')->name('show');           // Xem chi tiết report
+                Route::put('/change-status/{report}', 'changeStatus')->name('changeStatus'); // Đổi status (route riêng)
+                Route::put('/{report}', 'update')->name('update');         // Update report (dùng UpdateReportRequest)
+                // Xem xét chuyển Route::delete vào đây nếu chỉ Admin được xóa
+                // Route::delete('/{report}', 'destroy')->name('destroy.admin'); // Đổi tên route nếu cần
 
-        }); // Kết thúc nhóm middleware CheckIsAdmin
+            }); // Kết thúc nhóm middleware CheckIsAdmin
 
-    }); // Kết thúc nhóm prefix 'reports'
+        }); // Kết thúc nhóm prefix 'reports'
 });
 // --- Admin Routes (Require JWT Auth + Admin Role) ---
 // Áp dụng 'auth:api' trước, sau đó là 'admin' middleware đã tạo
@@ -106,10 +106,10 @@ Route::middleware(['auth:api', IsAdmin::class]) // <<<=== THAY ĐỔI Ở ĐÂY
         Route::delete('/{id}', [AdminController::class, 'deleteUser'])->name('users.delete');
 
         // PATCH /api/admin/users/{id}/lock - Admin khóa/mở khóa người dùng
-        Route::patch('/{id}/lock', [AdminController::class, 'lockUser'])->name('users.lock');
+        Route::put('/lock/{id}', [AdminController::class, 'lockUser'])->name('users.lock');
 
         // PATCH /api/admin/users/{id}/role - Admin thay đổi vai trò người dùng
-        Route::patch('/{id}/role', [AdminController::class, 'changeRole'])->name('users.role');
+        Route::put('/change-role/{id}', [AdminController::class, 'changeRole'])->name('users.role');
 
         // GET /api/admin/reports/connections - Admin lấy báo cáo kết nối (ví dụ)
         Route::get('/connection-report', [AdminController::class, 'getConnectionReports'])->name('reports.connections');

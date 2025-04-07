@@ -61,7 +61,7 @@ class ReportController extends Controller
             'userId' => Auth::id(),
             'reportedBy' => $validatedData['userId'],
             'reason' => $validatedData['reason'],
-            'status' => 'processing',
+            'status' => 'Processing',
         ]);
         return new ReportResource($report);
         // return response()->json([
@@ -115,7 +115,7 @@ class ReportController extends Controller
     {
         Gate::authorize('update', $report);
         $validated = $request->validate([
-            'status' => ['required', 'string', Rule::in(['pending', 'reviewed', 'resolved', 'rejected', "warning", "warned"])],
+            'status' => ['required', 'string', Rule::in(['Processing', 'Banned', 'Canceled', 'Warning', 'Warned'])],
         ]);
         $report->update(['status' => $validated['status']]);
         $report->load(['user:id,name,email', 'reportedByUser:id,name,email']);
@@ -132,16 +132,19 @@ class ReportController extends Controller
         $user = Auth::user();
 
         $warningCount = $user->receivedReports()
-            ->whereIn('status', ['warning'])
+            ->whereIn('status', ['Warning'])
             ->count();
 
-        if ($warningCount > 0) {
-            return response()->json([
-                'message' => "Có {$warningCount} báo cáo liên quan đến tài khoản của bạn đã được xử lý.",
-                'count' => $warningCount
-            ]);
-        }
+        $reports = $user->receivedReports()
+            ->whereIn('status', ['Warning'])
+            ->get();
 
-        return response()->json(['message' => 'Không có cảnh báo nào.', 'count' => 0]);
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'totalReports' => $warningCount,
+                'reports' => $reports->isEmpty() ? [] : $reports
+            ]
+        ]);
     }
 }
