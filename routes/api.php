@@ -1,12 +1,17 @@
 <?php
 
-use Tymon\JWTAuth\Facades\JWTAuth;
+use Illuminate\Http\Request; // Giữ lại
 use Illuminate\Support\Facades\Route;
+
+// --- Import Controllers ---
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ReportController; // <<< Namespace Controller Report
 use App\Http\Controllers\ConnectionController;
 use App\Http\Controllers\AdminController;
-use App\Http\Middleware\IsAdmin;
 use App\Http\Controllers\AppointmentController;
+// --- Import Middleware ---
+use App\Http\Middleware\CheckIsAdmin; // <<< Import Middleware Admin
+use App\Http\Middleware\IsAdmin;
 use App\Models\User;
 
 // Public routes
@@ -59,6 +64,34 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/appointments', [AppointmentController::class, 'myAppointments'])->name('appointments.my');
     Route::put('/appointments/{appointment}', [AppointmentController::class, 'updateStatus'])->name('appointments.updateStatus');
     Route::apiResource('appointments', AppointmentController::class)->except(['index']);
+  
+  // ==============================
+    // --- Report Routes ---
+    // ==============================
+    Route::prefix('reports') // Tiền tố URL: /api/reports/...
+         ->name('reports.') // Tiền tố tên route: reports....
+         ->controller(ReportController::class) // Chỉ định Controller
+         ->group(function () {
+
+        // -- Routes cho mọi user đã đăng nhập --
+        Route::post('/', 'store')->name('store');             // Tạo report
+        Route::get('/get-warning', 'getWarning')->name('getWarning'); // Lấy cảnh báo
+        Route::delete('/{report}', 'destroy')->name('destroy');      // Xóa report (Policy check quyền)
+
+        // -- Routes chỉ dành cho Admin --
+        // Áp dụng middleware CheckIsAdmin trực tiếp bằng tên class
+        Route::middleware(CheckIsAdmin::class)->group(function() {
+
+            Route::get('/', 'index')->name('index');                 // Lấy danh sách report
+            Route::get('/{report}', 'show')->name('show');           // Xem chi tiết report
+            Route::put('/change-status/{report}', 'changeStatus')->name('changeStatus'); // Đổi status (route riêng)
+            Route::put('/{report}', 'update')->name('update');         // Update report (dùng UpdateReportRequest)
+            // Xem xét chuyển Route::delete vào đây nếu chỉ Admin được xóa
+            // Route::delete('/{report}', 'destroy')->name('destroy.admin'); // Đổi tên route nếu cần
+
+        }); // Kết thúc nhóm middleware CheckIsAdmin
+
+    }); // Kết thúc nhóm prefix 'reports'
 });
 // --- Admin Routes (Require JWT Auth + Admin Role) ---
 // Áp dụng 'auth:api' trước, sau đó là 'admin' middleware đã tạo
