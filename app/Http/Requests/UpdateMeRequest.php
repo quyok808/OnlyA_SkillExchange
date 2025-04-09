@@ -18,7 +18,7 @@ class UpdateMeRequest extends FormRequest
         // Avoid allowing email/password changes here
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'phone' => ['nullable', 'string', 'unique:users,phone', 'max:10', 'min:10'],
+            'phone' => ['nullable', 'string', 'max:10', 'min:10'],
             'address' => ['nullable', 'string', 'max:255'],
         ];
     }

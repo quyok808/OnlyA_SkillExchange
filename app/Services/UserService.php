@@ -68,7 +68,8 @@ class UserService
         if ($user->lock) {
             throw new \Exception('Tài khoản của bạn bị khoá.', 403);
         }
-
+        $ttl = (int) ($data["remember"] == true ? config('jwt.ttl_remember') : config('jwt.ttl'));
+        JWTAuth::factory()->setTTL($ttl);
         return JWTAuth::fromUser($user);
     }
 
@@ -287,7 +288,9 @@ class UserService
         }
 
         // Update user
-        $user->fill($updateData);
+        $user->name = $updateData['name'];
+        $user->phone = $updateData['phone'];
+        $user->address = $updateData['address'];
         $user->save();
 
         // Reload relations if needed, e.g., skills
