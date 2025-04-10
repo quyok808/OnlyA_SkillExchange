@@ -9,6 +9,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ConnectionController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AppointmentController;
+use App\Http\Controllers\MessageController;
 // --- Import Middleware ---
 use App\Http\Middleware\CheckIsAdmin;
 use App\Http\Middleware\IsAdmin;
@@ -63,6 +64,10 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/appointments', [AppointmentController::class, 'myAppointments'])->name('appointments.my');
     Route::put('/appointments/{appointment}', [AppointmentController::class, 'updateStatus'])->name('appointments.updateStatus');
     Route::apiResource('appointments', AppointmentController::class)->except(['index']);
+
+    // Message routes
+    Route::post('/messages/send', [MessageController::class, 'sendMessage']); // Gửi tin nhắn
+    Route::get('/messages/{chatRoomId}', [MessageController::class, 'getMessages']); // Lấy danh sách tin nhắn theo chatRoomId
 
     // ==============================
     // --- Report Routes ---
