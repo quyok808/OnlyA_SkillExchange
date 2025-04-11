@@ -6,7 +6,7 @@ const cors = require("cors");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] },
+    cors: { origin: "*", methods: ["GET", "POST"] },
 });
 
 app.use(cors({ origin: "*", methods: ["GET", "POST"] }));
@@ -18,69 +18,104 @@ const PORT = process.env.PORT || 5009;
 const onlineUsers = new Map(); // Key: userId, Value: socket.id
 
 io.on("connection", (socket) => {
-  console.log(`User connected: ${socket.id}`);
+    console.log(`User connected: ${socket.id}`);
 
-  socket.on("joinRoom", (chatRoomId) => {
-    socket.join(chatRoomId);
-    console.log(`User ${socket.id} joined room: ${chatRoomId}`);
-  });
+    socket.on("joinRoom", (chatRoomId) => {
+        socket.join(chatRoomId);
+        console.log(`User ${socket.id} joined room: ${chatRoomId}`);
+    });
 
-  socket.on("userOnline", (userId) => {
-    onlineUsers.set(userId, socket.id); // Lưu trạng thái online
-    console.log(`User ${userId} is online`);
-    io.emit("onlineStatusUpdate", { userId, status: "online" });
-  });
+    socket.on("userOnline", (userId) => {
+        onlineUsers.set(userId, socket.id); // Lưu trạng thái online
+        console.log(`User ${userId} is online`);
+        io.emit("onlineStatusUpdate", { userId, status: "online" });
+    });
 
-  socket.on("checkUserStatus", (userId) => {
-    const status = onlineUsers.has(userId) ? "online" : "offline";
-    socket.emit("userStatusResponse", { userId, status });
-  });
+    socket.on("checkUserStatus", (userId) => {
+        const status = onlineUsers.has(userId) ? "online" : "offline";
+        socket.emit("userStatusResponse", { userId, status });
+    });
 
-  // Xử lý gửi tin nhắn real-time
-  socket.on("sendMessage", (messageData) => {
-    const { chatRoomId, userId, message } = messageData;
-    if (!chatRoomId || !userId || !message) {
-      socket.emit("messageError", { error: "Missing required fields" });
-      return;
-    }
-    const formattedMessage = {
-      chatRoomId,
-      userId,
-      message,
-      timestamp: new Date().toISOString(),
-    };
-    io.to(chatRoomId).emit("newMessage", formattedMessage);
-    console.log(`Message sent to room ${chatRoomId} by ${userId}: ${message}`);
-  });
+    // Xử lý gửi tin nhắn real-time
+    socket.on("sendMessage", (messageData) => {
+        const { chatRoomId, userId, message } = messageData;
+        if (!chatRoomId || !userId || !message) {
+            socket.emit("messageError", { error: "Missing required fields" });
+            return;
+        }
+        const formattedMessage = {
+            chatRoomId,
+            userId,
+            message,
+            timestamp: new Date().toISOString(),
+        };
+        io.to(chatRoomId).emit("newMessage", formattedMessage);
+        console.log(
+            `Message sent to room ${chatRoomId} by ${userId}: ${message}`
+        );
+    });
 
-  socket.on("disconnect", () => {
-    let disconnectedUserId = null;
-    for (const [userId, socketId] of onlineUsers.entries()) {
-      if (socketId === socket.id) {
-        disconnectedUserId = userId;
-        onlineUsers.delete(userId);
-        break;
-      }
-    }
-    if (disconnectedUserId) {
-      console.log(`User ${disconnectedUserId} disconnected`);
-      io.emit("onlineStatusUpdate", { userId: disconnectedUserId, status: "offline" });
-    }
-  });
+    socket.on("disconnect", () => {
+        let disconnectedUserId = null;
+        for (const [userId, socketId] of onlineUsers.entries()) {
+            if (socketId === socket.id) {
+                disconnectedUserId = userId;
+                onlineUsers.delete(userId);
+                break;
+            }
+        }
+        if (disconnectedUserId) {
+            console.log(`User ${disconnectedUserId} disconnected`);
+            io.emit("onlineStatusUpdate", {
+                userId: disconnectedUserId,
+                status: "offline",
+            });
+        }
+    });
+
+    socket.on("send-notify-request-connection", (userId) => {
+        console.log("Reveived request connection from user: " + userId);
+        io.to(onlineUsers.get(userId)).emit(
+            "receive-notify-request-connection"
+        );
+    });
+
+    socket.on("cancel-notify-request-connection", (userId) => {
+        console.log("Reveived cancel request connection from user: " + userId);
+        io.to(onlineUsers.get(userId)).emit(
+            "receive-cancel-notify-request-connection"
+        );
+    });
+
+    socket.on("reject-notify-request-connection", (userId) => {
+        console.log("Reveived reject request connection from user: " + userId);
+        io.to(onlineUsers.get(userId)).emit(
+            "receive-reject-notify-request-connection"
+        );
+    });
+
+    socket.on("accept-notify-request-connection", (userId) => {
+        console.log("Reveived accept request connection from user: " + userId);
+        io.to(onlineUsers.get(userId)).emit(
+            "receive-accept-notify-request-connection"
+        );
+    });
 });
 
 app.post("/broadcast", (req, res) => {
-  const messageData = req.body;
-  if (!messageData.chatRoomId) {
-    return res.status(400).json({ status: "error", message: "Missing chatRoomId" });
-  }
+    const messageData = req.body;
+    if (!messageData.chatRoomId) {
+        return res
+            .status(400)
+            .json({ status: "error", message: "Missing chatRoomId" });
+    }
 
-  io.to(messageData.chatRoomId).emit("newMessage", messageData);
-  res.status(200).json({ status: "success", message: "Message broadcasted" });
+    io.to(messageData.chatRoomId).emit("newMessage", messageData);
+    res.status(200).json({ status: "success", message: "Message broadcasted" });
 });
 
 server.listen(PORT, () => {
-  console.log(`Socket.IO server running on http://localhost:${PORT}`);
+    console.log(`Socket.IO server running on http://localhost:${PORT}`);
 });
 // const express = require("express");
 // const http = require("http");
@@ -123,7 +158,7 @@ server.listen(PORT, () => {
 //     socket.join(chatRoomId); // Tham gia phòng với chatRoomId
 //     console.log(`User ${socket.id} joined room: ${chatRoomId}`);
 //   });
-  
+
 //   socket.on("userOnline", (userId) => {
 //     // Lưu trạng thái user online (ví dụ: trong một object hoặc database)
 //     console.log(`User ${userId} is online`);
