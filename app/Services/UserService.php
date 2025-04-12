@@ -395,7 +395,7 @@ class UserService
 
         // Apply pagination (limit/offset)
         $users = $features->paginate()->getQuery()
-            ->select('users.id', 'users.name', 'users.email', 'users.photo', 'users.role') // Select desired columns
+            ->select('users.id', 'users.name', 'users.email', 'users.photo', 'users.role', 'users.address') // Select desired columns
             ->get(); // Execute the final query
 
 
@@ -407,6 +407,7 @@ class UserService
                 'email' => $user->email,
                 'role' => $user->role,
                 'photo' => $user->photo ? asset('storage/' . $user->photo) : asset('storage/photos/defaultAvatar.jpg'),
+                'address' => $user->address,
                 'skills' => $user->skills, // Skills are already eager-loaded
             ];
         });

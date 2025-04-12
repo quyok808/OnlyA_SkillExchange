@@ -299,18 +299,21 @@ class ConnectionController extends Controller
     {
         $currentUserId = Auth::id();
         $otherUserId = $userID; // Lấy id từ User model đã được bind
-
         if ($currentUserId == $otherUserId) {
             // Hoặc trả về trạng thái đặc biệt nếu cần
             return response()->json(['status' => 'self', 'connectionId' => null, 'chatRoomId' => null]);
         }
 
 
-        $connection = Connection::where(function ($query) use ($otherUserId) {
-            $query->where(['senderId' => $otherUserId, 'receiverId' => $otherUserId])
-                ->orWhere(['senderId' => $otherUserId, 'receiverId' => $otherUserId]);
-        })
-            ->first(); // Lấy bản ghi connection nếu có
+        $connection = Connection::where(function ($query) use ($currentUserId, $otherUserId) {
+            $query->where('senderId', $otherUserId)
+                ->where('receiverId', $currentUserId)
+                ->orWhere(function ($q) use ($currentUserId, $otherUserId) {
+                    $q->where('senderId', $currentUserId)
+                        ->where('receiverId', $otherUserId);
+                });
+        })->first();
+
 
         if (!$connection) {
             return response()->json(['status' => 'none', 'connectionId' => null, 'chatRoomId' => null]);
