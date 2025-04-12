@@ -44,13 +44,12 @@ class AppointmentController extends Controller
         }
 
         // Kiểm tra conflict (Query dùng tên cột camelCase)
-        $conflict = Appointment::whereIn('status', ['pending', 'accepted']) // Chỉ check lịch đang chờ hoặc đã nhận
+        $conflict = Appointment::whereIn('status', ['pending', 'accepted'])
             ->where(function ($query) use ($dataToCreate) {
-                // Kiểm tra xem sender HOẶC receiver có tham gia lịch nào khác không
-                $query->where('senderId', $dataToCreate['senderId'])    // <-- Query camelCase
-                    ->orWhere('receiverId', $dataToCreate['senderId']) // <-- Query camelCase
-                    ->orWhere('senderId', $dataToCreate['receiverId']) // <-- Query camelCase
-                    ->orWhere('receiverId', $dataToCreate['receiverId']); // <-- Query camelCase
+                $query->where('senderId', $dataToCreate['senderId'])
+                    ->orWhere('receiverId', $dataToCreate['senderId'])
+                    ->orWhere('senderId', $dataToCreate['receiverId'])
+                    ->orWhere('receiverId', $dataToCreate['receiverId']);
             })
             ->where(function ($query) use ($startTime, $endTime) {
                 // Điều kiện thời gian trùng lặp: (start1 < end2) AND (end1 > start2)
@@ -61,44 +60,27 @@ class AppointmentController extends Controller
 
         if ($conflict) {
             // Trả về lỗi 409 Conflict giống Node.js
-            return response()->json(['status' => 'error', 'message' => 'Thời gian này tớ đang bận, vui lòng chọn thời gian khác nhé!'], Response::HTTP_CONFLICT); // 409
+            return response()->json(['status' => 'error', 'message' => 'Thời gian này tớ đang bận, vui lòng chọn thời gian khác nhé!'], 409); // 409
         }
         // --- Kết thúc Conflict Check ---
 
         // Tạo appointment dùng Mass Assignment (key camelCase khớp $fillable)
         // Laravel sẽ dùng $casts để xử lý 'startTime', 'endTime' thành đối tượng DateTime khi lưu
         $newAppointment = Appointment::create($dataToCreate);
-
-        // Trả về response JSON thành công (dùng Resource)
-        // ->fresh() để lấy dữ liệu mới nhất bao gồm ID và timestamps
         return response()->json([
             'status' => 'success', // status ở ngoài cùng
             'data' => [
                 // Dữ liệu từ Resource được đặt vào key 'appointment'
                 'appointment' => new AppointmentResource($newAppointment->fresh())
             ]
-        ], Response::HTTP_CREATED);
-
-        // return (new AppointmentResource($newAppointment->fresh()))
-        //         ->additional(['status' => 'success']) // Thêm status='success' vào response
-        //         ->response() // Lấy đối tượng JsonResponse
-        //         ->setStatusCode(Response::HTTP_CREATED); // 201 Created
+        ], 201);
     }
 
     /**
      * GET /api/appointments/{appointment}
-     * Tương đương: Node exports.getAppointment
      */
-    public function show(Appointment $appointment): JsonResponse // Route Model Binding với {appointment}
+    public function show(Appointment $appointment): JsonResponse
     {
-        // Laravel tự động tìm Appointment bằng ID (UUID) từ route. Nếu không thấy -> 404.
-
-        // Kiểm tra quyền xem nếu cần (ví dụ: chỉ sender/receiver được xem)
-        // $userId = Auth::id();
-        // if ($appointment->senderId !== $userId && $appointment->receiverId !== $userId) {
-        //     return response()->json(['status' => 'error', 'message' => 'Unauthorized'], Response::HTTP_FORBIDDEN); // 403
-        // }
-
         return response()->json([
             'status' => 'success',
             'data' => [
@@ -106,69 +88,6 @@ class AppointmentController extends Controller
             ]
         ]); // Mặc định 200 OK
     }
-
-    /**
-     * PATCH /api/appointments/{appointment}
-     * Tương đương: Node exports.updateAppointment + UpdateAppointmentHandler
-     */
-    // public function update(Request $request, Appointment $appointment): JsonResponse
-    // {
-    //     // Validate input (key camelCase)
-    //     $validated = $request->validate([
-    //         // Chỉ cho phép cập nhật startTime, endTime, description
-    //         'startTime' => ['sometimes','required','date_format:Y-m-d\TH:i:s.v\Z'],
-    //         'endTime' => ['sometimes','required','date_format:Y-m-d\TH:i:s.v\Z', Rule::when($request->has('startTime'), 'after:startTime')], // Cần xử lý phức tạp hơn nếu chỉ update endTime
-    //         'description' => 'sometimes|required|string|max:65535',
-    //         // Ngăn update các trường khác qua endpoint này
-    //         'status' => 'prohibited',
-    //         'senderId' => 'prohibited',
-    //         'receiverId' => 'prohibited',
-    //     ]);
-
-    //     // Kiểm tra quyền hạn nếu cần (ví dụ: chỉ sender?)
-    //     // if (Auth::id() !== $appointment->senderId) {
-    //     //     return response()->json(['status' => 'error', 'message' => 'Forbidden'], Response::HTTP_FORBIDDEN);
-    //     // }
-
-    //     // --- Kiểm tra conflict nếu thời gian thay đổi (Tùy chọn nhưng nên có) ---
-    //     $newStartTime = isset($validated['startTime']) ? Carbon::parse($validated['startTime']) : $appointment->startTime;
-    //     $newEndTime = isset($validated['endTime']) ? Carbon::parse($validated['endTime']) : $appointment->endTime;
-
-    //     if (isset($validated['startTime']) || isset($validated['endTime'])) {
-    //          $conflict = Appointment::whereIn('status', ['pending', 'accepted'])
-    //             ->where('id', '!=', $appointment->id) // Loại trừ chính nó
-    //             ->where(function ($query) use ($appointment) {
-    //                 // Check conflict với sender hoặc receiver của lịch hẹn này
-    //                 $query->where('senderId', $appointment->senderId)
-    //                       ->orWhere('receiverId', $appointment->senderId)
-    //                       ->orWhere('senderId', $appointment->receiverId)
-    //                       ->orWhere('receiverId', $appointment->receiverId);
-    //             })
-    //             ->where(function ($query) use ($newStartTime, $newEndTime) {
-    //                 $query->where('startTime', '<', $newEndTime)
-    //                       ->where('endTime', '>', $newStartTime);
-    //             })
-    //             ->exists();
-
-    //         if ($conflict) {
-    //             return response()->json(['status' => 'error', 'message' => 'Thời gian cập nhật bị trùng, vui lòng chọn thời gian khác!'], Response::HTTP_CONFLICT); // 409
-    //         }
-    //     }
-    //     // --- Hết kiểm tra conflict ---
-
-
-    //     // Update dùng Mass Assignment (key camelCase khớp $fillable)
-    //     // Laravel sẽ dùng $casts để xử lý datetime
-    //     $appointment->update($validated);
-
-    //     // Trả về response dùng Resource (lấy dữ liệu mới nhất)
-    //     return response()->json([
-    //         'status' => 'success',
-    //         'data' => [
-    //             'appointment' => new AppointmentResource($appointment->fresh())
-    //         ]
-    //     ]); // 200 OK
-    // }
 
     /**
      * DELETE /api/appointments/{appointment}
@@ -214,22 +133,10 @@ class AppointmentController extends Controller
                 'appointments' => AppointmentResource::collection($appointments)
             ]
         ]);
-
-        //  return response()->json([
-        //      'status' => 'success',
-        //      // Bọc collection vào key 'appointments' trong 'data'
-        //      'data' => ['appointments' => AppointmentResource::collection($appointments)]
-        //  ]);
-
-        // Cách 2: Override collection resource (phức tạp hơn)
-        // return AppointmentResource::collection($appointments)
-        //         ->additional(['status' => 'success'])
-        //         ->response(); // Cần customize resource collection để có cấu trúc data.appointments
     }
 
     /**
      * PATCH /api/appointments/{appointment}/status
-     * Tương đương: Node exports.updateAppointmentStatus + UpdateAppointmentStatusHandler
      */
     public function updateStatus(UpdateAppointmentStatusRequest $request, Appointment $appointment): JsonResponse
     {

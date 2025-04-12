@@ -39,25 +39,16 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/users/upload-photo', [UserController::class, 'uploadAvatar']);
     Route::put('/users/add-skill', [UserController::class, 'addSkillToUser']);
 
-    //Routers connection
-    // GET /api/connections (Lấy tất cả liên quan) - Tương đương getAllrequests
+    //Connection
     Route::get('/connections', [ConnectionController::class, 'index']);
-    // GET /api/connections/pending (Lấy đang chờ)
     Route::get('/connections/pending', [ConnectionController::class, 'pending']);
-    // GET /api/connections/accepted (Lấy đã chấp nhận)
     Route::get('/connections/accepted', [ConnectionController::class, 'accepted']);
-    // POST /api/connections (Gửi yêu cầu) - Tương đương sendRequest
     Route::post('/connections/request', [ConnectionController::class, 'store']);
-    // GET /api/connections/status/{user} (Kiểm tra trạng thái với user cụ thể)
     Route::get('/connections/status/{userID}', [ConnectionController::class, 'status']); // {user} sẽ là ID của người kia
-    // PATCH /api/connections/{connection}/accept (Chấp nhận yêu cầu)
     Route::put('/connections/{connection}/accept', [ConnectionController::class, 'accept']);
-    // DELETE /api/connections/{connection}/reject (Từ chối yêu cầu - theo logic gốc là xóa)
     Route::put('/connections/{connection}/reject', [ConnectionController::class, 'reject']);
-    // DELETE /api/connections/cancel/{receiver} (Hủy yêu cầu đã gửi)
-    Route::delete('/connections/cancel/{receiver}', [ConnectionController::class, 'cancel']); // {receiver} là ID người nhận
-    // DELETE /api/connections/disconnect (Hủy kết nối đã chấp nhận)
-    Route::delete('/connections/disconnect', [ConnectionController::class, 'disconnect']); // Dùng request body như gốc
+    Route::delete('/connections/cancel/{receiver}', [ConnectionController::class, 'cancel']);
+    Route::delete('/connections/disconnect', [ConnectionController::class, 'disconnect']);
 
     //Appointment
     Route::post('/appointments', [AppointmentController::class, 'store']);
@@ -66,62 +57,47 @@ Route::middleware('auth:api')->group(function () {
     Route::apiResource('appointments', AppointmentController::class)->except(['index']);
 
     // Message routes
-    Route::post('/messages/send', [MessageController::class, 'sendMessage']); // Gửi tin nhắn
-    Route::get('/messages/{chatRoomId}', [MessageController::class, 'getMessages']); // Lấy danh sách tin nhắn theo chatRoomId
+    Route::post('/messages/send', [MessageController::class, 'sendMessage']);
+    Route::get('/messages/{chatRoomId}', [MessageController::class, 'getMessages']);
 
     // ==============================
     // --- Report Routes ---
     // ==============================
-    Route::prefix('reports') // Tiền tố URL: /api/reports/...
-        ->name('reports.') // Tiền tố tên route: reports....
-        ->controller(ReportController::class) // Chỉ định Controller
+    Route::prefix('reports')
+        ->name('reports.')
+        ->controller(ReportController::class)
         ->group(function () {
 
             // -- Routes cho mọi user đã đăng nhập --
-            Route::post('/', 'store')->name('store');             // Tạo report
-            Route::get('/get-warning', 'getWarning')->name('getWarning'); // Lấy cảnh báo
-            Route::delete('/{report}', 'destroy')->name('destroy');      // Xóa report (Policy check quyền)
+            Route::post('/', 'store')->name('store');
+            Route::get('/get-warning', 'getWarning')->name('getWarning');
+            Route::delete('/{report}', 'destroy')->name('destroy');
 
             // -- Routes chỉ dành cho Admin --
             // Áp dụng middleware CheckIsAdmin trực tiếp bằng tên class
             Route::middleware(CheckIsAdmin::class)->group(function () {
 
-                Route::get('/', 'index')->name('index');                 // Lấy danh sách report
-                Route::get('/{report}', 'show')->name('show');           // Xem chi tiết report
-                Route::put('/change-status/{report}', 'changeStatus')->name('changeStatus'); // Đổi status (route riêng)
-                Route::put('/{report}', 'update')->name('update');         // Update report (dùng UpdateReportRequest)
-                // Xem xét chuyển Route::delete vào đây nếu chỉ Admin được xóa
-                // Route::delete('/{report}', 'destroy')->name('destroy.admin'); // Đổi tên route nếu cần
-
+                Route::get('/', 'index')->name('index');
+                Route::get('/{report}', 'show')->name('show');
+                Route::put('/change-status/{report}', 'changeStatus')->name('changeStatus');
+                Route::put('/{report}', 'update')->name('update');
             }); // Kết thúc nhóm middleware CheckIsAdmin
 
-        }); // Kết thúc nhóm prefix 'reports'
+        });
 });
 // --- Admin Routes (Require JWT Auth + Admin Role) ---
 // Áp dụng 'auth:api' trước, sau đó là 'admin' middleware đã tạo
-Route::middleware(['auth:api', IsAdmin::class]) // <<<=== THAY ĐỔI Ở ĐÂY
+Route::middleware(['auth:api', IsAdmin::class])
     ->prefix('admins')
     ->name('api.admin.')
     ->group(function () {
-        // GET /api/admin/users - Admin lấy TẤT CẢ người dùng
         Route::get('/', [AdminController::class, 'getAllUsers'])->name('users.index');
-
-        // DELETE /api/admin/users/{id} - Admin xóa người dùng
         Route::delete('/{id}', [AdminController::class, 'deleteUser'])->name('users.delete');
-
-        // PATCH /api/admin/users/{id}/lock - Admin khóa/mở khóa người dùng
         Route::put('/lock/{id}', [AdminController::class, 'lockUser'])->name('users.lock');
-
-        // PATCH /api/admin/users/{id}/role - Admin thay đổi vai trò người dùng
         Route::put('/change-role/{id}', [AdminController::class, 'changeRole'])->name('users.role');
-
-        // GET /api/admin/reports/connections - Admin lấy báo cáo kết nối (ví dụ)
         Route::get('/connection-report', [AdminController::class, 'getConnectionReports'])->name('reports.connections');
-
-        // Thêm các route admin khác nếu cần...
     });
 
-// Optional Fallback Route for unmatched API routes
 Route::fallback(function () {
     return response()->json(['message' => 'API endpoint not found.'], 404);
 });
