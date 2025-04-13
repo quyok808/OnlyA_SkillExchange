@@ -256,50 +256,33 @@ class UserController extends Controller
                 $serviceQuery['exclude_user_id'] = $currentUser->id;
             }
 
-            // --- The service will handle filtering by 'skillName', 'name', 'email' etc. ---
-            // --- based on the keys present in $serviceQuery ---
-
-            // 3. Call the service method
             $result = $this->userService->searchUsers($serviceQuery);
-
-            // 4. Handle the service response
-
-            // Handle the special case where search was by skillName, but no skills matched
             if (isset($result['status']) && $result['status'] === 'success_empty') {
                 return response()->json([
                     'status' => 'success',
-                    'message' => 'No skills found matching the criteria, resulting in no users.', // Optional informative message
+                    'message' => 'No skills found matching the criteria, resulting in no users.',
                     'users' => [],
                     'totalUsers' => 0,
                     'totalPages' => 0,
-                    'page' => 1, // Default page for empty result
-                    'limit' => $result['limit'] ?? $request->query('limit', 10), // Get limit from service or default
+                    'page' => 1,
+                    'limit' => $result['limit'] ?? $request->query('limit', 10),
                 ]);
             }
-
-            // Handle the standard success case (including when no users match the overall criteria)
-            // The service provides the formatted users and pagination data.
             return response()->json([
                 'status' => 'success',
-                'users' => $result['users'],        // Users are already formatted by the service
+                'users' => $result['users'],
                 'totalUsers' => $result['totalUsers'],
                 'totalPages' => $result['totalPages'],
                 'page' => $result['page'],
                 'limit' => $result['limit'],
-                // 'features' key is removed as the service doesn't return the APIFeatures object directly
-                // The necessary pagination info is already included above.
             ]);
-        } catch (\Exception $error) { // Catch base Exception for broader coverage
-            // It's good practice to log the actual error for debugging
+        } catch (\Exception $error) {
             Log::error('User search failed: ' . $error->getMessage(), [
-                'exception' => $error // Log the full exception
+                'exception' => $error
             ]);
-
-            // Return a generic error response to the client
             return response()->json([
                 'status' => 'error',
-                // 'message' => 'An error occurred while searching for users. Please try again later.'
-                'message' => 'Lỗi khi tìm kiếm người dùng: ' . $error->getMessage() // Or keep original if preferred for API consumers
+                'message' => 'Lỗi khi tìm kiếm người dùng: ' . $error->getMessage()
             ], 500);
         }
     }

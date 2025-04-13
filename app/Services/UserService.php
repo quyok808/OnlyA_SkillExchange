@@ -190,7 +190,6 @@ class UserService
     public function me()
     {
         try {
-            // Xác thực token và lấy user
             $user = JWTAuth::parseToken()->authenticate();
 
             if (!$user) {
@@ -198,7 +197,6 @@ class UserService
             }
 
             $user->load('skills');
-            // Trả về thông tin user (có thể tùy chỉnh dữ liệu trả về)
             return $user;
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
             throw new \Exception('Token has expired.', 401);
@@ -274,7 +272,6 @@ class UserService
      */
     public function updateMe(User $user, array $data): User
     {
-        // Define fillable attributes for updateMe
         $fillable = ['name', 'phone', 'address'];
         $updateData = [];
         foreach ($fillable as $field) {
@@ -287,34 +284,29 @@ class UserService
             throw new \Exception('No valid fields provided for update.', 400);
         }
 
-        // Update user
         $user->name = $updateData['name'];
         $user->phone = $updateData['phone'];
         $user->address = $updateData['address'];
         $user->save();
 
-        // Reload relations if needed, e.g., skills
         $user->load('skills');
 
-        return $user; // Return updated user
+        return $user;
     }
 
     /**
      * Change the user's password.
      */
-    public function changePassword(User $user, array $data): void // Return void or bool
+    public function changePassword(User $user, array $data): void
     {
-        // Check current password
         if (!Hash::check($data['passwordCurrent'], $user->password)) {
-            throw new \Exception(' current pasIncorrectsword.', 401); // 401 Unauthorized or 400 Bad Request
+            throw new \Exception(' current pasIncorrectsword.', 401);
         }
 
-        // Check if new password is same as old
         if ($data['password'] === $data['passwordCurrent']) {
             throw new \Exception('New password cannot be the same as the current password.', 400);
         }
 
-        // Update password
         $user->password = Hash::make($data['password']);
         $user->passwordChangedAt = now();
         $user->save();
@@ -325,9 +317,8 @@ class UserService
      */
     public function getUserById($id): User
     {
-        $user = User::findOrFail($id); // Eager load skills
-        $user->load('skills');
-
+        $user = User::with('skills')->findOrFail($id);
+        $user->photo = $user->photo ? asset('storage/' . $user->photo) : asset('storage/photos/defaultAvatar.jpg');
         return $user;
     }
 
@@ -336,9 +327,8 @@ class UserService
      */
     public function searchUsers(array $query): array
     {
-        $queryBuilder = User::query()->with('skills'); // Eager load skills
+        $queryBuilder = User::query()->with('skills');
 
-        // --- Handle 'skillName' parameter ---
         if (isset($query['skillName']) && !empty($query['skillName'])) {
             $skillName = $query['skillName'];
             $skillIds = Skill::where('name', 'like', '%' . $skillName . '%')
@@ -346,13 +336,6 @@ class UserService
                 ->toArray();
 
             if (empty($skillIds)) {
-                // No skills match the criteria. Return a specific indicator or empty result.
-                // Option 1: Return an indicator
-                // return [
-                //     'status' => 'success_empty', // Custom status controller can check
-                //     'limit' => (new APIFeatures($queryBuilder, $query))->getLimit() // Still provide limit info
-                // ];
-                // Option 2: Return empty result structure directly (controller won't need special check)
                 return [
                     'users' => [],
                     'page' => 1,
@@ -366,59 +349,44 @@ class UserService
             });
         }
 
-        // --- Handle 'name' parameter ---
         if (isset($query['name']) && !empty($query['name'])) {
             $searchTerm = $query['name'];
-            // Search name and potentially other fields
             $queryBuilder->where(function ($q) use ($searchTerm) {
                 $q->where('users.name', 'like', '%' . $searchTerm . '%');
-                // ->orWhere('users.email', 'like', '%' . $searchTerm . '%'); // Uncomment to search email too
             });
         }
 
-        // --- Handle excluding a specific user ID ---
         if (isset($query['exclude_user_id']) && !empty($query['exclude_user_id'])) {
             $queryBuilder->where('users.id', '!=', $query['exclude_user_id']);
         }
 
-        // --- Apply general filtering, sorting, pagination via APIFeatures ---
-        // Pass the already constrained queryBuilder to APIFeatures
         $features = new APIFeatures($queryBuilder, $query);
 
-        // Apply sorting and *generic* filters from APIFeatures
-        // Make sure APIFeatures filter() doesn't conflict with your specific name/skill filters
         $features->filter()->sort();
 
-        // Get Total Count *after* all filters are applied
-        // Clone to avoid issues with pagination state if count is needed before get()
         $totalUsers = (clone $features->getQuery())->count();
 
-        // Apply pagination (limit/offset)
         $users = $features->paginate()->getQuery()
             ->select('users.id', 'users.name', 'users.email', 'users.photo', 'users.role', 'users.address') // Select desired columns
-            ->get(); // Execute the final query
+            ->get();
 
-
-        // Format the results (similar to your original searchUsers, but using the fetched $users)
         $formattedUsers = $users->map(function ($user) {
             return [
-                '_id' => $user->id, // Use id or _id consistently
+                '_id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
                 'photo' => $user->photo ? asset('storage/' . $user->photo) : asset('storage/photos/defaultAvatar.jpg'),
                 'address' => $user->address,
-                'skills' => $user->skills, // Skills are already eager-loaded
+                'skills' => $user->skills,
             ];
         });
 
 
-        // Calculate pagination details
         $limit = $features->getLimit();
         $page = $features->getPage();
         $totalPages = $limit > 0 ? ceil($totalUsers / $limit) : ($totalUsers > 0 ? 1 : 0);
 
-        // Return data structure expected by the controller
         return [
             'users' => $formattedUsers,
             'page' => $page,
@@ -435,25 +403,19 @@ class UserService
      */
     public function searchUsersInNetwork($currentUserId, array $query): array
     {
-        // --- Xác định ID của những người dùng đã kết nối ---
-        $acceptedStatus = 'accepted'; // Hoặc giá trị trạng thái chấp nhận của bạn
+        $acceptedStatus = 'accepted';
 
-        // Lấy ID của những người mà currentUserId đã gửi request và được chấp nhận
         $receiverIds = Connection::where('senderId', $currentUserId)
-            ->where('status', $acceptedStatus)
+            ->where('status', $acceptedStatus)->orWhere('status', 'pending')
             ->pluck('receiverId');
 
-        // Lấy ID của những người đã gửi request cho currentUserId và được chấp nhận
         $senderIds = Connection::where('receiverId', $currentUserId)
-            ->where('status', $acceptedStatus)
+            ->where('status', $acceptedStatus)->orWhere('status', 'pending')
             ->pluck('senderId');
 
-        // Gộp và lấy các ID duy nhất của những người dùng đã kết nối
         $connectedUserIds = $receiverIds->merge($senderIds)->unique()->values()->all();
 
-        // Nếu không có ai trong network, trả về kết quả rỗng ngay lập tức
         if (empty($connectedUserIds)) {
-            // Lấy limit từ query để trả về cấu trúc nhất quán
             $limit = (new APIFeatures(User::query(), $query))->getLimit();
             return [
                 'users' => [],
@@ -464,15 +426,11 @@ class UserService
             ];
         }
 
-        // --- Bắt đầu xây dựng query cho User ---
-        // Chỉ lấy những user có ID nằm trong danh sách đã kết nối
-        // và loại trừ chính người dùng hiện tại
         $queryBuilder = User::query()
-            ->with('skills') // Eager load skills
-            ->whereIn('id', $connectedUserIds) // *** Chỉ lấy user trong network ***
-            ->where('id', '!=', $currentUserId); // *** Loại trừ chính mình ***
+            ->with('skills')
+            ->whereIn('id', $connectedUserIds)
+            ->where('id', '!=', $currentUserId);
 
-        // --- Handle 'skillName' parameter ---
         if (isset($query['skillName']) && !empty($query['skillName'])) {
             $skillName = $query['skillName'];
             $skillIds = Skill::where('name', 'like', '%' . $skillName . '%')
@@ -480,8 +438,7 @@ class UserService
                 ->toArray();
 
             if (empty($skillIds)) {
-                // Không có skill nào khớp -> không có user nào khớp trong network thỏa mãn skill
-                $limit = (new APIFeatures(clone $queryBuilder, $query))->getLimit(); // Clone để lấy limit
+                $limit = (new APIFeatures(clone $queryBuilder, $query))->getLimit();
                 return [
                     'users' => [],
                     'page' => 1,
@@ -495,62 +452,49 @@ class UserService
             });
         }
 
-        // --- Handle 'name' parameter ---
         if (isset($query['name']) && !empty($query['name'])) {
             $searchTerm = $query['name'];
             $queryBuilder->where(function ($q) use ($searchTerm) {
-                // Laravel >= 9 không cần chỉ định users.name khi không có join phức tạp
                 $q->where('name', 'like', '%' . $searchTerm . '%');
-                // ->orWhere('email', 'like', '%' . $searchTerm . '%');
             });
         }
 
-        // --- Handle excluding a specific user ID (ngoài currentUserId) ---
-        // Điều này hữu ích nếu bạn muốn lọc bỏ một người dùng cụ thể *khác* khỏi kết quả tìm kiếm network
         if (isset($query['exclude_user_id']) && !empty($query['exclude_user_id'])) {
-            // Đảm bảo không loại trừ chính người đang tìm kiếm nếu họ vô tình truyền vào
             if ($query['exclude_user_id'] != $currentUserId) {
                 $queryBuilder->where('id', '!=', $query['exclude_user_id']);
             }
         }
 
-        // --- Apply general filtering, sorting, pagination via APIFeatures ---
         $features = new APIFeatures($queryBuilder, $query);
-        $features->filter()->sort(); // Apply generic filters and sorting
+        $features->filter()->sort();
 
-        // Get Total Count *after* all filters are applied
         $totalUsers = (clone $features->getQuery())->count(); // Clone before pagination
 
-        // Apply pagination and select columns
         $users = $features->paginate()->getQuery()
-            ->select('users.id', 'users.name', 'users.email', 'users.photo', 'users.role')
+            ->select('users.id', 'users.name', 'users.email', 'users.photo', 'users.role', 'users.address')
             ->get();
 
-        // Format the results
         $formattedUsers = $users->map(function ($user) {
             return [
                 '_id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
+                'address' => $user->address,
                 'photo' => $user->photo ? asset('storage/' . $user->photo) : asset('storage/photos/defaultAvatar.jpg'),
-                // Map skills để trả về cấu trúc mong muốn (nếu cần)
                 'skills' => $user->skills->map(function ($skill) {
                     return [
                         'id' => $skill->id,
                         'name' => $skill->name,
-                        // 'description' => $skill->description, // Ví dụ thêm trường khác
                     ];
                 }),
             ];
         });
 
-        // Calculate pagination details
         $limit = $features->getLimit();
         $page = $features->getPage();
         $totalPages = $limit > 0 ? ceil($totalUsers / $limit) : ($totalUsers > 0 ? 1 : 0);
 
-        // Return data structure
         return [
             'users' => $formattedUsers,
             'page' => $page,
@@ -567,22 +511,18 @@ class UserService
      */
     public function addSkillsToUser(User $user, array $data): User
     {
-        // Validate that the skill IDs exist in the 'skills' table
         $skillIds = $data['skills'] ?? [];
         if (empty($skillIds)) {
             throw new \Exception('No skills provided.', 400);
         }
 
-        // Ensure skill IDs actually exist in the database
         $existingSkillsCount = Skill::whereIn('id', $skillIds)->count();
         if ($existingSkillsCount !== count($skillIds)) {
             throw new \Exception('One or more provided skills are invalid.', 400);
         }
 
-        // Attach the skills (syncWithoutDetaching prevents duplicates and adding existing ones)
         $user->skills()->syncWithoutDetaching($skillIds);
 
-        // Reload the skills relationship to include the newly added ones
         $user->load('skills');
 
         return $user;
@@ -591,31 +531,27 @@ class UserService
     public function getRelatedUserIds($currentUserId)
     {
         try {
-            // 1. Tìm tất cả các connections mà currentUserId là sender hoặc receiver
             $connections = Connection::where(function ($query) use ($currentUserId) {
                 $query->where('senderId', $currentUserId)
                     ->orWhere('receiverId', $currentUserId);
             })
-                ->select('senderId', 'receiverId') // Chỉ lấy các trường cần thiết
-                ->get(); // Lấy kết quả dưới dạng Collection
+                ->select('senderId', 'receiverId')
+                ->get();
 
-            // 2. Duyệt qua các connections và lấy userId còn lại
             $relatedUserIds = $connections->map(function ($connection) use ($currentUserId) {
-                // Sử dụng so sánh không chặt chẽ (==) để linh hoạt với kiểu dữ liệu (int/string)
-                // Hoặc ép kiểu nếu bạn chắc chắn về kiểu dữ liệu: (string)$connection->senderId === (string)$currentUserId
                 if ($connection->senderId == $currentUserId) {
                     return $connection->receiverId;
-                } else { // ($connection->receiverId == $currentUserId)
+                } else {
                     return $connection->senderId;
                 }
             });
 
-            // 3. Loại bỏ các giá trị trùng lặp và trả về Collection đã được sắp xếp lại key
+
             return $relatedUserIds->unique()->values();
         } catch (Exception $error) {
-            // Ghi log lỗi để dễ dàng debug
+
             Log::error("Lỗi khi lấy related user IDs cho user {$currentUserId}: " . $error->getMessage());
-            // Ném lại lỗi để tầng gọi có thể xử lý
+
             throw $error;
         }
     }
