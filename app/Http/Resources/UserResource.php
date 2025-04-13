@@ -23,7 +23,6 @@ class UserResource extends JsonResource
             'active' => $this->active,
             'lock' => $this->lock,
             'created_at' => $this->created_at?->toIso8601String(),
-            // Tránh trả về các trường nhạy cảm
         ];
     }
 }
