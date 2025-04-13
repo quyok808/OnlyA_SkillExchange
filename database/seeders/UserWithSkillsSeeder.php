@@ -29,12 +29,12 @@ class UserWithSkillsSeeder extends Seeder
         $user = User::create([
             'id' => Str::uuid(), // Tạo UUID
             'name' => 'Test User',
-            'email' => 'testuser@example.com',
+            'email' => 'admin@admin.com',
             'phone' => '1234567890',
             'address' => 'Test Address',
             'password' => Hash::make('Aa_11111'), // Băm mật khẩu
-            'role' => 'user',
-            'photo' => 'default.jpg',
+            'role' => 'admin',
+            'photo' => 'photos/defaultAvatar.jpg',
             'active' => true,
             'lock' => false
         ]);
@@ -43,5 +43,6 @@ class UserWithSkillsSeeder extends Seeder
         $user->skills()->attach($skills->pluck('id')->toArray());
 
         $this->command->info('Người dùng đã được tạo thành công với 3 kỹ năng.');
+        $this->command->comment('Email đăng nhập: admin@admin.com | Mật khẩu: Aa_11111.');
     }
 }

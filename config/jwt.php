@@ -101,7 +101,8 @@ return [
     |
     */
 
-    'ttl' => env('JWT_TTL', 60),
+    'ttl' => (int) env('JWT_TTL', 60), // Thời gian sống mặc định: 1 giờ
+    'ttl_remember' => (int) env('JWT_TTL_REMEMBER', 10080), // Thời gian sống khi remember: 7 ngày
 
     /*
     |--------------------------------------------------------------------------

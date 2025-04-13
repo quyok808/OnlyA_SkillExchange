@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+// --- Các use statements hiện có ---
 use App\Models\Skill;
 use Illuminate\Support\Facades\Hash;
 use Tymon\JWTAuth\Contracts\JWTSubject;
@@ -11,67 +12,62 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
+// --- Import các lớp cần thiết cho quan hệ mới ---
+use App\Models\Report;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
 class User extends Authenticatable implements JWTSubject
 {
+    // --- Traits, fillable, hidden, casts, keyType, incrementing (Giữ nguyên như code gốc của bạn) ---
     use HasApiTokens, HasFactory, Notifiable, HasUuids;
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
-    protected $fillable = [
-        'name',
-        'email',
-        'phone',
-        'address',
-        'password',
-        'role',
-        'photo',
-        'active',
-        'lock',
-        'passwordResetToken',
-        'passwordResetExpires',
-        'emailVerificationToken',
-        'emailVerificationExpires',
-        'passwordChangedAt',
-    ];
-
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
-    protected $hidden = [
-        'password',
-        'remember_token', // Thêm remember_token
-    ];
-
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-        'password' => 'hashed', // Sử dụng 'hashed' để tự động băm mật khẩu
-        'passwordResetExpires' => 'datetime',
-        'emailVerificationExpires' => 'datetime',
-    ];
-
+    protected $fillable = ['name', 'email', 'phone', 'address', 'password', 'role', 'photo', 'active', 'lock', 'passwordResetToken', 'passwordResetExpires', 'emailVerificationToken', 'emailVerificationExpires', 'passwordChangedAt'];
+    protected $hidden = ['password', 'remember_token', 'passwordResetToken', 'emailVerificationToken'];
+    protected $casts = ['email_verified_at' => 'datetime', 'password' => 'hashed', 'passwordResetExpires' => 'datetime', 'emailVerificationExpires' => 'datetime', 'passwordChangedAt' => 'datetime', 'active' => 'boolean', 'lock' => 'boolean'];
     protected $keyType = 'string';
-
     public $incrementing = false;
+
+    // =====================================================
+    // --- CÁC QUAN HỆ (Relationships) ---
+    // =====================================================
 
     public function skills()
     {
         return $this->belongsToMany(Skill::class, 'user_skills', 'userId', 'skillId');
     }
+
+    public function reports(): HasMany
+    {
+        return $this->hasMany(Report::class, 'userId', 'id');
+    }
+
+
+    /**
+     * Quan hệ: Lấy tất cả các báo cáo được tạo bởi người dùng này.
+     * Sửa foreign key thành 'userId'.
+     */
+    public function createdReports(): HasMany
+    {
+        // Liên kết với bảng 'reports' thông qua khóa ngoại 'userId' trên bảng reports
+        return $this->hasMany(Report::class, 'userId', 'id'); // <<< SỬA foreign key
+    }
+
+    /**
+     * Quan hệ: Lấy tất cả các báo cáo nhắm vào người dùng này.
+     * Sửa foreign key thành 'reportedBy'.
+     */
+    public function receivedReports(): HasMany
+    {
+        // Liên kết với bảng 'reports' thông qua khóa ngoại 'reportedBy' trên bảng reports
+        return $this->hasMany(Report::class, 'userId', 'id'); // <<< SỬA foreign key
+    }
+
+    // =====================================================
+    // --- CÁC PHƯƠNG THỨC KHÁC (Giữ nguyên) ---
+    // =====================================================
     public function comparePassword($password)
     {
         return Hash::check($password, $this->password);
     }
-
     public function createEmailVerificationToken()
     {
         $token = bin2hex(random_bytes(32));
