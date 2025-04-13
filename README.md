@@ -1,4 +1,4 @@
-# OnlyA_SkillExchange
+# OnlyA SkillExchange Backend Laravel
 
 1. Cài đặt
 
