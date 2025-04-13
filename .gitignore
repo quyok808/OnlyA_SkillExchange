@@ -2,9 +2,20 @@
 /node_modules
 /public/build
 /public/hot
-/public/storage
+
+# Ignore all contents of public/storage except defaultAvatar.jpg and .gitkeep
+/public/storage/*
+!/public/storage/.gitkeep
+!/public/storage/photos/
+!/public/storage/photos/.gitkeep
+!/public/storage/photos/defaultAvatar.jpg
+
+# Ignore storage secrets, pail, and other contents but keep folder
 /storage/*.key
 /storage/pail
+/storage/*
+!/storage/.gitkeep
+
 /vendor
 .env
 .env.backup
@@ -16,6 +27,8 @@ Homestead.yaml
 npm-debug.log
 yarn-error.log
 /auth.json
+
+# IDE/editor folders
 /.fleet
 /.idea
 /.nova
