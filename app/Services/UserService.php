@@ -32,10 +32,9 @@ class UserService
                 'photo' => 'photos/defaultAvatar.jpg',
                 'lock' => false,
                 'skill' => [],
-                'role' => 'user', // Thêm role mặc định
+                'role' => 'user',
             ]);
 
-            // Gọi sendVerificationEmail
             $this->sendVerificationEmail($user->id, 'http', 'localhost:5008');
             return ['user' => $user];
         } catch (\Exception $e) {
@@ -256,7 +255,7 @@ class UserService
 
         $path = $file->storeAs('photos', $filename, 'public');
 
-        if ($user->photo && $user->photo !== 'default.jpg') {
+        if ($user->photo && $user->photo !== 'photos/defaultAvatar.jpg') {
             Storage::disk('public')->delete($user->photo);
         }
 

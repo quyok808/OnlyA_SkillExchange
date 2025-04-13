@@ -37,15 +37,13 @@ class UserController extends Controller
                 'data' => $result
             ], 201);
         } catch (\Exception $e) {
-            $statusCode = (int) $e->getCode(); // Chắc chắn là int
-
-            // Kiểm tra xem $statusCode có phải là một mã HTTP hợp lệ không
+            $statusCode = (int) $e->getCode();
             if ($statusCode < 100 || $statusCode > 599) {
-                $statusCode = 400; // Đặt thành 400 Bad Request theo mặc định
+                $statusCode = 400;
                 Log::warning('Invalid HTTP status code from exception: ' . $e->getCode() . '. Using 400 instead.');
             }
 
-            Log::error('Registration error: ' . $e->getMessage(), ['code' => $statusCode]); // Log lỗi
+            Log::error('Registration error: ' . $e->getMessage(), ['code' => $statusCode]);
             return response()->json([
                 'status' => 'error',
                 'message' => $e->getMessage()
