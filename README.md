@@ -1,13 +1,19 @@
 # OnlyA_SkillExchange
 
-1. Đăng kí
+1. Cài đặt
 
-    - Sử dụng JWT để tạo token
+    - Clone dự án về
 
-2. Đăng nhập
+    - Mở terminal và chạy lệnh `composer install`
 
-3. Đăng xuất
+2. Khởi tạo database
 
-4. Upload Avatar
-
-5. Lấy thông tin profile
+    - Tạo Database MySQL với tên `Skill_Exchange_DB`
+  
+    - Chạy lệnh `php artisan migrate` để tạo DB.
+  
+    - Chạy lệnh `php artisan seed:db` để tạo tài khoản admin đầu tiên.
+  
+3. Start Server
+  
+    - Chạy lệnh `npm start` để chạy server.
