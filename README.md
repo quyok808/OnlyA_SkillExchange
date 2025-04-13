@@ -17,3 +17,13 @@
 3. Start Server
   
     - Chạy lệnh `npm start` để chạy server.
+  
+4. Cài đặt server socket
+
+    - Vào folder SocKet-server
+  
+    - Mở terminal và chạy lệnh `npm install`.
+
+5. Chạy server socket
+
+    - Chạy lệnh `npm start` để chạy server.
