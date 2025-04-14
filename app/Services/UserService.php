@@ -232,12 +232,6 @@ class UserService
 
     public function uploadAvatar(User $user, Request $request): string
     {
-        var_dump(
-            $request->all(),
-            $request->file('photo'),
-            $request->hasFile('photo'),
-            $_FILES
-        );
         if (!$request->hasFile('photo')) {
             throw new \Exception('The photo không tồn tại.', 400);
         }

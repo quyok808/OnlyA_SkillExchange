@@ -83,7 +83,7 @@ class MessageController extends Controller
 
             Log::info('Message data sent to Socket.IO', $messageData);
 
-            $response = Http::post('http://localhost:5009/broadcast', $messageData);
+            $response = Http::withoutVerifying()->post('https://192.168.1.8:5009/broadcast', $messageData);
             if ($response->failed()) {
                 Log::error('Failed to broadcast message', ['response' => $response->body()]);
                 return response()->json(['status' => 'error', 'message' => 'Lỗi gửi tin nhắn qua Socket.IO'], 500);

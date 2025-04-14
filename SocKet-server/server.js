@@ -1,10 +1,26 @@
 const express = require("express");
-const http = require("http");
+const fs = require("fs");
+const https = require("https");
 const { Server } = require("socket.io");
 const cors = require("cors");
 
 const app = express();
-const server = http.createServer(app);
+
+function loadSSLCertificates() {
+    try {
+        const key = fs.readFileSync("key.pem");
+        const cert = fs.readFileSync("cert.pem");
+        return { key, cert };
+    } catch (error) {
+        console.error("Lỗi khi đọc chứng chỉ SSL:", error.message);
+        process.exit(1); // Thoát nếu không đọc được chứng chỉ
+    }
+}
+
+const options = loadSSLCertificates();
+
+// Tạo server HTTPS
+const server = https.createServer(options, app);
 const io = new Server(server, {
     cors: { origin: "*", methods: ["GET", "POST"] },
 });
@@ -183,5 +199,5 @@ app.post("/broadcast", (req, res) => {
 });
 
 server.listen(PORT, "0.0.0.0", () => {
-    console.log(`Socket.IO server running on http://0.0.0.0:${PORT}`);
+    console.log(`Socket.IO server running on https://0.0.0.0:${PORT}`);
 });
