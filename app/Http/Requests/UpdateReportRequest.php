@@ -13,7 +13,7 @@ class UpdateReportRequest extends FormRequest
     public function authorize(): bool
     {
         $report = $this->route('report');
-        return Gate::allows('update', $report); // Dùng Policy để check quyền update
+        return Gate::allows('update', $report);
     }
 
     /**
@@ -21,7 +21,7 @@ class UpdateReportRequest extends FormRequest
      */
     public function rules(): array
     {
-        $validStatuses = ['pending', 'processing', 'reviewed', 'resolved', 'rejected']; // Các status hợp lệ
+        $validStatuses = ['pending', 'processing', 'reviewed', 'resolved', 'rejected'];
 
         return [
             'status' => [

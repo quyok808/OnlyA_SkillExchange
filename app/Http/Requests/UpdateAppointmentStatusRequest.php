@@ -9,7 +9,7 @@ class UpdateAppointmentStatusRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // Logic quyền trong controller
+        return true;
     }
 
     public function rules(): array

@@ -11,7 +11,7 @@ class StoreReportRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return Auth::check(); // Cho phép mọi user đăng nhập tạo report
+        return Auth::check();
     }
 
     /**
@@ -19,16 +19,15 @@ class StoreReportRequest extends FormRequest
      */
     public function rules(): array
     {
-        $reporterId = Auth::id(); // Lấy ID người báo cáo
+        $reporterId = Auth::id();
 
         return [
-            // Key 'userId' trong request body là ID của người BỊ báo cáo
             'userId' => [
                 'required',
-                'string',           // UUID là string
-                Rule::exists('users', 'id'), // Phải tồn tại user này
+                'string',
+                Rule::exists('users', 'id'),
                 function ($attribute, $value, $fail) use ($reporterId) {
-                    if ($value == $reporterId) { // Không cho tự báo cáo
+                    if ($value == $reporterId) {
                         $fail('Bạn không thể tự báo cáo chính mình.');
                     }
                 },

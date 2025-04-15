@@ -72,14 +72,14 @@ Route::middleware('auth:api')->group(function () {
             Route::post('/', 'store')->name('store');
             Route::get('/get-warning', 'getWarning')->name('getWarning');
             Route::delete('/{report}', 'destroy')->name('destroy');
-
+            Route::put('/change-status/{report}', 'changeStatus')->name('changeStatus');
             // -- Routes chỉ dành cho Admin --
             // Áp dụng middleware CheckIsAdmin trực tiếp bằng tên class
             Route::middleware(CheckIsAdmin::class)->group(function () {
 
                 Route::get('/', 'index')->name('index');
                 Route::get('/{report}', 'show')->name('show');
-                Route::put('/change-status/{report}', 'changeStatus')->name('changeStatus');
+
                 Route::put('/{report}', 'update')->name('update');
             }); // Kết thúc nhóm middleware CheckIsAdmin
 

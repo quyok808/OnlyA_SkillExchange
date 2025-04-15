@@ -7,14 +7,15 @@ use App\Models\Report;
 use App\Http\Requests\StoreReportRequest;
 use App\Http\Requests\UpdateReportRequest;
 use App\Http\Resources\ReportResource;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+// use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Database\Eloquent\Builder;
 
-use function Laravel\Prompts\warning;
+// use function Laravel\Prompts\warning;
 
 class ReportController extends Controller
 {
@@ -64,12 +65,6 @@ class ReportController extends Controller
             'status' => 'Processing',
         ]);
         return new ReportResource($report);
-        // return response()->json([
-        //     'status' => 'success',
-        //     'data' => [
-        //         'report' => (new ReportResource($report))->toArray($request),
-        //     ],
-        // ], Response::HTTP_CREATED);
     }
 
     /**
@@ -113,12 +108,17 @@ class ReportController extends Controller
      */
     public function changeStatus(Request $request, Report $report)
     {
-        Gate::authorize('update', $report);
         $validated = $request->validate([
             'status' => ['required', 'string', Rule::in(['Processing', 'Banned', 'Canceled', 'Warning', 'Warned'])],
         ]);
         $report->update(['status' => $validated['status']]);
         $report->load(['user:id,name,email', 'reportedByUser:id,name,email']);
+
+        if ($report->user) {
+            $report->user->lock = 1;
+            $report->user->save();
+        }
+
         return new ReportResource($report);
     }
 

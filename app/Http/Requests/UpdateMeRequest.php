@@ -14,8 +14,6 @@ class UpdateMeRequest extends FormRequest
 
     public function rules(): array
     {
-        // Define rules for fields allowed in updateMe
-        // Avoid allowing email/password changes here
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:10', 'min:10'],

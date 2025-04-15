@@ -4,7 +4,6 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-// Không cần import UserResource vì không trả về dữ liệu lồng nhau
 
 class ReportResource extends JsonResource
 {

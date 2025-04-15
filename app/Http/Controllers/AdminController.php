@@ -8,11 +8,10 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Models\User; // Import User model
-use Illuminate\Validation\Rule; // Import Rule for validation
-use App\Http\Controllers\Controller; // Import base Controller
-use Illuminate\Support\Facades\Validator; // Import Validator facade
-use App\Models\Report; // Import Report model (Giả định bạn có model này)
+use App\Models\User;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Validator;
+use App\Models\Report;
 
 class AdminController extends Controller
 {
@@ -43,8 +42,8 @@ class AdminController extends Controller
             ]);
 
             $query->withCount([
-                'createdReports as createdReportCount', // Đếm số report đã tạo (sử dụng alias)
-                'receivedReports as reportCount' // Đếm số report bị nhận (sử dụng alias)
+                'createdReports as createdReportCount',
+                'receivedReports as reportCount'
             ]);
 
             if (!empty($filters)) {
@@ -72,11 +71,10 @@ class AdminController extends Controller
                 }
             }
 
-            // --- 6. Áp dụng Sắp xếp (Sorting) ---
+
             $sortField = ltrim($sortParam, '-');
             $sortDirection = Str::startsWith($sortParam, '-') ? 'desc' : 'asc';
 
-            // Danh sách các trường được phép sắp xếp (bao gồm cả các trường count)
             $allowedSorts = [
                 'id',
                 'name',
@@ -200,7 +198,7 @@ class AdminController extends Controller
     public function getConnectionReports(Request $request): JsonResponse
     {
         try {
-            $connections = Connection::query() // Start query on the Connection model
+            $connections = Connection::query()
                 ->select(
                     DB::raw('YEAR(created_at) as year'),
                     DB::raw('MONTH(created_at) as month'),
@@ -214,7 +212,7 @@ class AdminController extends Controller
             return response()->json(['status' => 'success', 'data' => $connections], 200);
         } catch (\Exception $error) {
             Log::error('Error fetching total connections per month: ' . $error->getMessage(), [
-                'exception' => $error // Optionally log the full exception trace
+                'exception' => $error
             ]);
 
             return response()->json([

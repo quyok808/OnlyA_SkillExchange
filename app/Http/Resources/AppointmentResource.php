@@ -10,16 +10,15 @@ class AppointmentResource extends JsonResource
     public static $wrap = null;
     public function toArray(Request $request): array
     {
-        // Truy cập thuộc tính camelCase của model ($this->resource)
         return [
-            '_id'         => $this->id,           // Lấy id (UUID/int)
-            'senderId'    => $this->senderId,   // Truy cập camelCase
-            'receiverId'  => $this->receiverId,  // Truy cập camelCase
-            'startTime'   => $this->startTime?->toISOString(), // Truy cập camelCase
-            'endTime'     => $this->endTime?->toISOString(),   // Truy cập camelCase
+            '_id'         => $this->id,
+            'senderId'    => $this->senderId,
+            'receiverId'  => $this->receiverId,
+            'startTime'   => $this->startTime?->toISOString(),
+            'endTime'     => $this->endTime?->toISOString(),
             'description' => $this->description,
             'status'      => $this->status,
-            'createdAt'   => $this->created_at?->toISOString(), // created_at là snake_case         
+            'createdAt'   => $this->created_at?->toISOString(),
         ];
     }
 }

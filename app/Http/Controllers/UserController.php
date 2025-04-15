@@ -242,14 +242,11 @@ class UserController extends Controller
     public function searchUser(Request $request): JsonResponse
     {
         try {
-            // 1. Get all query parameters from the request
             $query = $request->query();
 
-            // 2. Prepare the query array for the service
-            $serviceQuery = $query; // Start with all request query params
+            $serviceQuery = $query;
 
-            // Add the current user ID for exclusion if authenticated
-            $currentUser = Auth::guard('api')->user(); // Use the specific guard if needed
+            $currentUser = Auth::guard('api')->user();
             if ($currentUser) {
                 $serviceQuery['exclude_user_id'] = $currentUser->id;
             }
@@ -315,10 +312,9 @@ class UserController extends Controller
     {
         try {
             $userId = auth('api')->user()->id;
-            $skillData = $request->all(); // Lấy toàn bộ dữ liệu từ request
+            $skillData = $request->all();
             $skillList = $skillData['skills'] ?? [];
 
-            // Kiểm tra skillList có phải là array không
             if (!is_array($skillList)) {
                 throw new \Error('skillData.skills must be an array', 400);
             }
@@ -329,12 +325,10 @@ class UserController extends Controller
                 throw new \Error('User not found', 404);
             }
 
-            // 1) Xử lý danh sách kỹ năng gửi lên
             $skillIds = [];
             foreach ($skillList as $skillItem) {
                 $skillName = null;
 
-                // Nếu là object, chỉ lấy name; nếu là string, dùng trực tiếp
                 if (is_array($skillItem) && isset($skillItem['name'])) {
                     $skillName = $skillItem['name'];
                 } elseif (is_string($skillItem)) {
@@ -343,12 +337,10 @@ class UserController extends Controller
                     continue;
                 }
 
-                // Kiểm tra xem skillName có phải là ObjectId không (24 ký tự hex)
                 if (preg_match('/^[0-9a-fA-F]{24}$/', $skillName)) {
                     continue;
                 }
 
-                // Tìm hoặc tạo skill
                 $skill = Skill::whereRaw('LOWER(name) = ?', [strtolower($skillName)])->first();
                 if (!$skill) {
                     $skill = Skill::create(['name' => $skillName]);
@@ -356,10 +348,8 @@ class UserController extends Controller
                 $skillIds[] = $skill->id;
             }
 
-            // 2) Cập nhật danh sách skills cho user
             $user->skills()->sync($skillIds);
 
-            // 3) Trả về user đã cập nhật với skills được load
             $updatedUser = User::with('skills')
                 ->select(['id', 'name', 'email'])
                 ->find($userId);

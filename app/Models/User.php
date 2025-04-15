@@ -18,17 +18,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable implements JWTSubject
 {
-    // --- Traits, fillable, hidden, casts, keyType, incrementing (Giữ nguyên như code gốc của bạn) ---
     use HasApiTokens, HasFactory, Notifiable, HasUuids;
     protected $fillable = ['name', 'email', 'phone', 'address', 'password', 'role', 'photo', 'active', 'lock', 'passwordResetToken', 'passwordResetExpires', 'emailVerificationToken', 'emailVerificationExpires', 'passwordChangedAt'];
     protected $hidden = ['password', 'remember_token', 'passwordResetToken', 'emailVerificationToken'];
     protected $casts = ['email_verified_at' => 'datetime', 'password' => 'hashed', 'passwordResetExpires' => 'datetime', 'emailVerificationExpires' => 'datetime', 'passwordChangedAt' => 'datetime', 'active' => 'boolean', 'lock' => 'boolean'];
     protected $keyType = 'string';
     public $incrementing = false;
-
-    // =====================================================
-    // --- CÁC QUAN HỆ (Relationships) ---
-    // =====================================================
 
     public function skills()
     {
@@ -40,30 +35,16 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(Report::class, 'userId', 'id');
     }
 
-
-    /**
-     * Quan hệ: Lấy tất cả các báo cáo được tạo bởi người dùng này.
-     * Sửa foreign key thành 'userId'.
-     */
     public function createdReports(): HasMany
     {
-        // Liên kết với bảng 'reports' thông qua khóa ngoại 'userId' trên bảng reports
-        return $this->hasMany(Report::class, 'userId', 'id'); // <<< SỬA foreign key
+        return $this->hasMany(Report::class, 'userId', 'id');
     }
 
-    /**
-     * Quan hệ: Lấy tất cả các báo cáo nhắm vào người dùng này.
-     * Sửa foreign key thành 'reportedBy'.
-     */
     public function receivedReports(): HasMany
     {
-        // Liên kết với bảng 'reports' thông qua khóa ngoại 'reportedBy' trên bảng reports
-        return $this->hasMany(Report::class, 'userId', 'id'); // <<< SỬA foreign key
+        return $this->hasMany(Report::class, 'userId', 'id');
     }
 
-    // =====================================================
-    // --- CÁC PHƯƠNG THỨC KHÁC (Giữ nguyên) ---
-    // =====================================================
     public function comparePassword($password)
     {
         return Hash::check($password, $this->password);

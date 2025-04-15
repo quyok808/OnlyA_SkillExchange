@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Middleware; // <<< Namespace đúng
+namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; // <<< Import Auth
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
-class CheckIsAdmin // <<< Tên class đúng
+class CheckIsAdmin
 {
     /**
      * Handle an incoming request.
@@ -17,20 +17,16 @@ class CheckIsAdmin // <<< Tên class đúng
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // 1. Kiểm tra đăng nhập (có thể thừa nếu 'auth:api' chạy trước, nhưng an toàn)
+        // 1. Kiểm tra đăng nhập
         if (!Auth::check()) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
         // 2. Kiểm tra vai trò Admin
-        // !!! SỬA LẠI ĐIỀU KIỆN NÀY CHO PHÙ HỢP VỚI MODEL USER CỦA BẠN !!!
-        // Ví dụ: Dựa vào cột 'role'
         if (Auth::user()->role !== 'admin') {
-            // Nếu không phải admin, trả về lỗi 403 Forbidden
             return response()->json(['message' => 'Unauthorized. Administrator access required.'], 403);
         }
 
-        // Nếu là admin, cho phép request đi tiếp đến controller/route tiếp theo
         return $next($request);
     }
 }

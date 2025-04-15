@@ -35,8 +35,8 @@ class MessageController extends Controller
             $fileName = null;
             if ($request->hasFile('file')) {
                 $file = $request->file('file');
-                $fileName = $file->getClientOriginalName(); // Lấy tên file gốc
-                $filePath = $file->storeAs('chat_files', $fileName, 'public'); // Lưu với tên gốc
+                $fileName = $file->getClientOriginalName();
+                $filePath = $file->storeAs('chat_files', $fileName, 'public');
                 if (!$filePath) {
                     Log::error('Failed to store file', ['file' => $fileName]);
                     return response()->json(['status' => 'error', 'message' => 'Lỗi lưu tệp'], 500);
@@ -63,7 +63,7 @@ class MessageController extends Controller
                 'image' => $imagePath,
             ]);
 
-            $baseUrl = config('app.url', 'http://localhost:5008');
+            $baseUrl = config('http://172.16.1.141:5008');
             $messageData = [
                 'id' => $message->id,
                 'username' => $user->name,
@@ -73,17 +73,18 @@ class MessageController extends Controller
                 'senderId' => $user->id,
                 'file' => $filePath ? [
                     'url' => "{$baseUrl}/storage/{$filePath}",
-                    'name' => $fileName, // Trả về tên file gốc
+                    'name' => $fileName,
                 ] : null,
                 'image' => $imagePath ? [
                     'url' => "{$baseUrl}/storage/{$imagePath}",
-                    'name' => $imageName, // Trả về tên ảnh gốc
+                    'name' => $imageName,
                 ] : null,
             ];
 
             Log::info('Message data sent to Socket.IO', $messageData);
+            $url = "https://172.16.1.141:5009/broadcast";
 
-            $response = Http::withoutVerifying()->post('https://192.168.1.8:5009/broadcast', $messageData);
+            $response = Http::withoutVerifying()->post($url, $messageData);
             if ($response->failed()) {
                 Log::error('Failed to broadcast message', ['response' => $response->body()]);
                 return response()->json(['status' => 'error', 'message' => 'Lỗi gửi tin nhắn qua Socket.IO'], 500);
@@ -114,7 +115,7 @@ class MessageController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->paginate($limit);
 
-            $baseUrl = config('app.url', 'http://localhost:5008');
+            $baseUrl = config('http://172.16.1.141:5008');
             $messages->getCollection()->transform(function ($message) use ($baseUrl) {
                 return [
                     'id' => $message->id,

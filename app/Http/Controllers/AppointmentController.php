@@ -56,7 +56,6 @@ class AppointmentController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Thời gian này tớ đang bận, vui lòng chọn thời gian khác nhé!'], 409); // 409
         }
 
-        // Tạo appointment dùng Mass Assignment (key camelCase khớp $fillable)
         $newAppointment = Appointment::create($dataToCreate);
         return response()->json([
             'status' => 'success',
@@ -85,13 +84,13 @@ class AppointmentController extends Controller
     public function destroy(Appointment $appointment): JsonResponse
     {
         $userId = Auth::id();
-        if ($appointment->senderId != $userId && $appointment->receiverId != $userId) { // Truy cập camelCase
-            return response()->json(['status' => 'error', 'message' => 'Bạn không có quyền xóa lịch hẹn này.'], Response::HTTP_FORBIDDEN); // 403
+        if ($appointment->senderId != $userId && $appointment->receiverId != $userId) {
+            return response()->json(['status' => 'error', 'message' => 'Bạn không có quyền xóa lịch hẹn này.'], Response::HTTP_FORBIDDEN);
         }
 
         $appointment->delete();
 
-        return response()->json(null, Response::HTTP_NO_CONTENT); // 204
+        return response()->json(null, Response::HTTP_NO_CONTENT);
     }
 
     /**
@@ -130,7 +129,7 @@ class AppointmentController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'Không thể chấp nhận/từ chối lịch hẹn không ở trạng thái chờ.'], Response::HTTP_BAD_REQUEST); // 400
             }
         } elseif ($newStatus === 'canceled') {
-            if ($appointment->senderId != $userId && $appointment->receiverId != $userId) { // <-- camelCase
+            if ($appointment->senderId != $userId && $appointment->receiverId != $userId) {
                 return response()->json(['status' => 'error', 'message' => 'Bạn không được phép thực hiện hành động này.'], Response::HTTP_FORBIDDEN); // 403
             }
             if (!in_array($appointment->status, ['pending', 'accepted'])) {
